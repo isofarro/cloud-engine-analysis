@@ -1,0 +1,37 @@
+{
+  "engines": [
+    {
+      "id": "stockfish-local",
+      "name": "Stockfish Local",
+      "type": "local",
+      "config": {
+        "enginePath": "/path/to/your/stockfish",
+        "config": {
+          "threads": 2,
+          "hash": 256
+        }
+      }
+    },
+    {
+      "id": "stockfish-remote",
+      "name": "Stockfish Remote",
+      "type": "remote",
+      "config": {
+        "host": "user@your-server.com",
+        "enginePath": "/path/to/remote/stockfish",
+        "config": {
+          "threads": 8,
+          "hash": 1024
+        }
+      }
+    }
+  ],
+  "serviceConfig": {
+    "defaultEngineConfig": {
+      "threads": 2,
+      "hash": 256
+    },
+    "maxEngines": 4,
+    "healthCheckInterval": 30000
+  }
+}
