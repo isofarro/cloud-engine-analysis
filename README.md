@@ -1,14 +1,10 @@
 # Cloud Engine Analysis
 
-A Node.js server project built with TypeScript and Restify.
+A server for managing chess analysis tasks, from simple position analysis to
+deeper iterative and forwards/backwards analysis of a given position.
 
-## Features
-
-- **TypeScript**: Full TypeScript support with strict type checking
-- **Restify**: Lightweight HTTP server framework
-- **ESLint**: Code linting with TypeScript support
-- **Prettier**: Code formatting
-- **Yarn**: Package management
+The output could be a simple EPD (Extended Position Description) string,
+or a chess tree.
 
 ## Getting Started
 
@@ -92,8 +88,10 @@ The server runs on `http://localhost:3001` by default.
 ```
 cloud-engine-analysis/
 ├── src/
-│   └── server.ts          # Main server file
-├── dist/                  # Compiled JavaScript files
+│   ├── app               # The http API routes and controllers
+│   ├── core              # The core application
+│   └── server.ts         # Main server file
+├── dist/                 # Compiled JavaScript files
 ├── .prettierrc           # Prettier configuration
 ├── eslint.config.js      # ESLint configuration
 ├── tsconfig.json         # TypeScript configuration
