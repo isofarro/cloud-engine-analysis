@@ -12,7 +12,7 @@ export class ChessGraph implements IChessGraph {
   addMove(fromFen: FenString, move: Move) {
     if (fromFen in this.nodes) {
       const existingMove = this.nodes[fromFen].moves.find(
-        (moveEdge) => move.toFen === moveEdge.toFen
+        moveEdge => move.toFen === moveEdge.toFen
       );
       if (!existingMove) {
         this.nodes[fromFen].moves.push({

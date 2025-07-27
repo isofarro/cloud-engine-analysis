@@ -1,4 +1,4 @@
-import { FenString } from "../types";
+import { FenString } from '../types';
 
 export type Move = {
   move: string;
