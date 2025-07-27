@@ -32,8 +32,8 @@ async function multiPVAnalysisExample() {
             multiPV: 3
         };
         
-        const multiPVTask = new PositionAnalysisTask(engine, sicilianPosition, multiPVConfig);
-        const multiPVResult = await multiPVTask.execute();
+        const multiPVTask = new PositionAnalysisTask(engine, multiPVConfig);
+        const multiPVResult = await multiPVTask.analysePosition(sicilianPosition);
         
         console.log(`✓ Analysis completed`);
         console.log(`✓ Analyzed ${multiPVResult.multiPV} variations:`);

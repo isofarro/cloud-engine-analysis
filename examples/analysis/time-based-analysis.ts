@@ -34,8 +34,8 @@ async function timeBasedAnalysisExample() {
             multiPV: 2
         };
         
-        const timeTask = new PositionAnalysisTask(engine, sicilianPosition, timeConfig);
-        const timeResult = await timeTask.execute();
+        const timeTask = new PositionAnalysisTask(engine, timeConfig);
+        const timeResult = await timeTask.analysePosition(sicilianPosition);
         
         const endTime = Date.now();
         const actualTime = (endTime - startTime) / 1000;

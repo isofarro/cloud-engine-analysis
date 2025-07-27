@@ -33,8 +33,8 @@ async function tacticalAnalysisExample() {
             multiPV: 1
         };
         
-        const tacticalTask = new PositionAnalysisTask(engine, tacticalPosition, tacticalConfig);
-        const result = await tacticalTask.execute();
+        const tacticalTask = new PositionAnalysisTask(engine, tacticalConfig);
+        const result = await tacticalTask.analysePosition(tacticalPosition);
         
         console.log(`✓ Analysis completed`);
         console.log(`✓ Depth reached: ${result.depth}`);

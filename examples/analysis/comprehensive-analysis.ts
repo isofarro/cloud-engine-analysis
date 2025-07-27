@@ -34,8 +34,8 @@ async function comprehensiveAnalysisExample() {
         const startingPosition = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
         const quickConfig: AnalysisConfig = { depth: 10, multiPV: 1 };
         
-        const quickTask = new PositionAnalysisTask(engine1, startingPosition, quickConfig);
-        const quickResult = await quickTask.execute();
+        const quickTask = new PositionAnalysisTask(engine1, quickConfig);
+        const quickResult = await quickTask.analysePosition(startingPosition);
         
         await engine1.disconnect();
         
@@ -60,8 +60,8 @@ async function comprehensiveAnalysisExample() {
         const sicilianPosition = 'rnbqkbnr/pp1ppppp/8/2p5/4P3/8/PPPP1PPP/RNBQKBNR w KQkq c6 0 2';
         const multiPVConfig: AnalysisConfig = { depth: 12, multiPV: 3 };
         
-        const multiPVTask = new PositionAnalysisTask(engine2, sicilianPosition, multiPVConfig);
-        const multiPVResult = await multiPVTask.execute();
+        const multiPVTask = new PositionAnalysisTask(engine2, multiPVConfig);
+        const multiPVResult = await multiPVTask.analysePosition(sicilianPosition);
         
         await engine2.disconnect();
         
@@ -89,8 +89,8 @@ async function comprehensiveAnalysisExample() {
         const timeConfig: AnalysisConfig = { time: 3, multiPV: 2 };
         
         const startTime = Date.now();
-        const timeTask = new PositionAnalysisTask(engine3, sicilianPosition, timeConfig);
-        const timeResult = await timeTask.execute();
+        const timeTask = new PositionAnalysisTask(engine3, timeConfig);
+        const timeResult = await timeTask.analysePosition(sicilianPosition);
         const endTime = Date.now();
         
         await engine3.disconnect();
@@ -117,8 +117,8 @@ async function comprehensiveAnalysisExample() {
         const tacticalPosition = 'r1bqkb1r/pppp1ppp/2n2n2/4p2Q/2B1P3/8/PPPP1PPP/RNB1K1NR w KQkq - 4 4';
         const tacticalConfig: AnalysisConfig = { depth: 12, multiPV: 1 };
         
-        const tacticalTask = new PositionAnalysisTask(engine4, tacticalPosition, tacticalConfig);
-        const tacticalResult = await tacticalTask.execute();
+        const tacticalTask = new PositionAnalysisTask(engine4, tacticalConfig);
+        const tacticalResult = await tacticalTask.analysePosition(tacticalPosition);
         
         await engine4.disconnect();
         

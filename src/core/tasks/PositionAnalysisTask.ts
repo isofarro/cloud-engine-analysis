@@ -4,20 +4,28 @@ import { normalizeFen } from '../utils/fen';
 
 export class PositionAnalysisTask {
     private engine: ChessEngine;
-    private fen: string;
     private config: AnalysisConfig;
 
-    constructor(engine: ChessEngine, fen: string, config: AnalysisConfig) {
+    constructor(engine: ChessEngine, config: AnalysisConfig) {
         this.engine = engine;
-        this.fen = fen;
         this.config = config;
     }
 
     /**
-     * Execute the position analysis task
+     * Analyze a chess position
+     * @param fen The FEN string of the position to analyze
      * @returns Promise<AnalysisResult> containing depth, selDepth, multiPV, score, and PVs
      */
-    async execute(): Promise<AnalysisResult> {
+    async analysePosition(fen: string): Promise<AnalysisResult> {
+        return this.execute(fen);
+    }
+
+    /**
+     * Execute the position analysis task
+     * @param fen The FEN string of the position to analyze
+     * @returns Promise<AnalysisResult> containing depth, selDepth, multiPV, score, and PVs
+     */
+    private async execute(fen: string): Promise<AnalysisResult> {
         // Ensure engine is connected
         const client = (this.engine as any).client;
         if (client.getStatus() === 'disconnected') {
@@ -25,7 +33,7 @@ export class PositionAnalysisTask {
         }
 
         // Get raw UCI results directly to avoid conflicts
-        const uciResults = await this._getRawUciResults();
+        const uciResults = await this._getRawUciResults(fen);
 
         // Find the best result for primary metrics
         const bestResult = this._findBestResult(uciResults);
@@ -34,7 +42,7 @@ export class PositionAnalysisTask {
         const pvs = this._extractPVs(uciResults);
 
         return {
-            fen: normalizeFen(this.fen),
+            fen: normalizeFen(fen),
             depth: bestResult.depth,
             selDepth: bestResult.selDepth,
             multiPV: this.config.multiPV || 1,
@@ -45,8 +53,9 @@ export class PositionAnalysisTask {
 
     /**
      * Get raw UCI results by directly interfacing with the engine's UCI client
+     * @param fen The FEN string of the position to analyze
      */
-    private async _getRawUciResults(): Promise<UciInfoPV[]> {
+    private async _getRawUciResults(fen: string): Promise<UciInfoPV[]> {
         const client = (this.engine as any).client;
         
         // Wait for engine to be ready (connected and idle)
@@ -108,7 +117,7 @@ export class PositionAnalysisTask {
 
                 // Set up position and start analysis
                 client.execute('ucinewgame');
-                client.execute('position', ['fen', this.fen]);
+                client.execute('position', ['fen', fen]);
                 
                 // Build and execute go command
                 const goParts = ['go'];
@@ -170,12 +179,7 @@ export class PositionAnalysisTask {
             .map(result => result.pv.join(' '));
     }
 
-    /**
-     * Get the FEN string being analyzed
-     */
-    getFen(): string {
-        return this.fen;
-    }
+
 
     /**
      * Get the analysis configuration

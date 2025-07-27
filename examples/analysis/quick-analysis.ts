@@ -31,8 +31,8 @@ async function quickAnalysisExample() {
             multiPV: 1
         };
         
-        const quickTask = new PositionAnalysisTask(engine, startingPosition, quickConfig);
-        const quickResult = await quickTask.execute();
+        const quickTask = new PositionAnalysisTask(engine, quickConfig);
+        const quickResult = await quickTask.analysePosition(startingPosition);
         
         console.log(`✓ Analysis completed`);
         console.log(`✓ Position (FEN): ${quickResult.fen}`);

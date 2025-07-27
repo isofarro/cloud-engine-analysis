@@ -106,8 +106,8 @@ npx tsx examples/analysis/comprehensive-analysis.ts
 ### Basic Analysis
 ```typescript
 const engine = new LocalChessEngine(engineConfig);
-const task = new PositionAnalysisTask(engine, fen, config);
-const result = await task.execute();
+const task = new PositionAnalysisTask(engine, config);
+const result = await task.analysePosition(fen);
 await engine.disconnect();
 ```
 
