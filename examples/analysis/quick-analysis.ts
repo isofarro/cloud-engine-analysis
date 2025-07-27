@@ -35,6 +35,7 @@ async function quickAnalysisExample() {
         const quickResult = await quickTask.execute();
         
         console.log(`✓ Analysis completed`);
+        console.log(`✓ Position (FEN): ${quickResult.fen}`);
         console.log(`✓ Depth reached: ${quickResult.depth}`);
         console.log(`✓ Selective depth: ${quickResult.selDepth}`);
         console.log(`✓ Evaluation: ${quickResult.score.type} ${quickResult.score.score}`);

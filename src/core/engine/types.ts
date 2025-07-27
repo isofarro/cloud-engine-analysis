@@ -33,6 +33,7 @@ export type UciInfoPV = UciOutputType & UciInfoEngine & AnalysisBase & {
  * with engine information. Used across the application for consistency.
  */
 export interface AnalysisResult extends AnalysisBase {
+    fen: string; // FEN position being analyzed
     pvs: string[]; // Array of principal variations as space-separated move strings
     time?: number; // Analysis time in milliseconds
     nodes?: number; // Nodes searched

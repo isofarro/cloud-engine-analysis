@@ -1,5 +1,6 @@
 import { ChessEngine, AnalysisConfig } from '../engine/ChessEngine';
 import { UciInfoPV, AnalysisResult } from '../engine/types';
+import { normalizeFen } from '../utils/fen';
 
 export class PositionAnalysisTask {
     private engine: ChessEngine;
@@ -33,6 +34,7 @@ export class PositionAnalysisTask {
         const pvs = this._extractPVs(uciResults);
 
         return {
+            fen: normalizeFen(this.fen),
             depth: bestResult.depth,
             selDepth: bestResult.selDepth,
             multiPV: this.config.multiPV || 1,
@@ -162,7 +164,7 @@ export class PositionAnalysisTask {
         const maxDepth = Math.max(...results.map(r => r.depth));
         const finalResults = results.filter(r => r.depth === maxDepth);
 
-        // Sort by multiPV and extract PVs as space-separated strings
+        // Sort by multiPV and extract PVs (convert arrays to space-separated strings)
         return finalResults
             .sort((a, b) => a.multiPV - b.multiPV)
             .map(result => result.pv.join(' '));
