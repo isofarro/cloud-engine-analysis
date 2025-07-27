@@ -17,13 +17,27 @@ export type UciInfoEngine = {
     hashfull: number;
 };
 
-export type UciInfoPV = UciOutputType & UciInfoEngine & {
+export type AnalysisBase = {
     depth: number;
     selDepth: number;
     multiPV: number;
     score: UciScore;
+};
+
+export type UciInfoPV = UciOutputType & UciInfoEngine & AnalysisBase & {
     pv: UciMove[];
 };
+
+/**
+ * Unified analysis result type that combines position analysis results
+ * with engine information. Used across the application for consistency.
+ */
+export interface AnalysisResult extends AnalysisBase {
+    pvs: string[]; // Array of principal variations as space-separated move strings
+    time?: number; // Analysis time in milliseconds
+    nodes?: number; // Nodes searched
+    nps?: number; // Nodes per second
+}
 
 export type UciInfoCurrMove = UciOutputType & {
     depth: number;

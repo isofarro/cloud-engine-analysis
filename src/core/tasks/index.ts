@@ -1,1 +1,2 @@
-export { PositionAnalysisTask, PositionAnalysisResult } from './PositionAnalysisTask';
+export { PositionAnalysisTask } from './PositionAnalysisTask';
+export { AnalysisResult } from '../engine/types';

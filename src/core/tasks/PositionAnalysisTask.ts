@@ -1,13 +1,5 @@
 import { ChessEngine, AnalysisConfig } from '../engine/ChessEngine';
-import { UciInfoPV, UciScore } from '../engine/types';
-
-export interface PositionAnalysisResult {
-    depth: number;
-    selDepth: number;
-    multiPV: number;
-    score: UciScore;
-    pvs: string[][]; // Array of principal variations (each PV is an array of moves)
-}
+import { UciInfoPV, AnalysisResult } from '../engine/types';
 
 export class PositionAnalysisTask {
     private engine: ChessEngine;
@@ -22,9 +14,9 @@ export class PositionAnalysisTask {
 
     /**
      * Execute the position analysis task
-     * @returns Promise<PositionAnalysisResult> containing depth, selDepth, multiPV, score, and PVs
+     * @returns Promise<AnalysisResult> containing depth, selDepth, multiPV, score, and PVs
      */
-    async execute(): Promise<PositionAnalysisResult> {
+    async execute(): Promise<AnalysisResult> {
         // Ensure engine is connected
         const client = (this.engine as any).client;
         if (client.getStatus() === 'disconnected') {
@@ -161,7 +153,7 @@ export class PositionAnalysisTask {
     /**
      * Extract all principal variations from the results
      */
-    private _extractPVs(results: UciInfoPV[]): string[][] {
+    private _extractPVs(results: UciInfoPV[]): string[] {
         if (results.length === 0) {
             return [];
         }
@@ -170,10 +162,10 @@ export class PositionAnalysisTask {
         const maxDepth = Math.max(...results.map(r => r.depth));
         const finalResults = results.filter(r => r.depth === maxDepth);
 
-        // Sort by multiPV and extract PVs
+        // Sort by multiPV and extract PVs as space-separated strings
         return finalResults
             .sort((a, b) => a.multiPV - b.multiPV)
-            .map(result => result.pv);
+            .map(result => result.pv.join(' '));
     }
 
     /**
