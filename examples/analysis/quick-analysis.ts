@@ -38,7 +38,7 @@ async function quickAnalysisExample() {
         console.log(`✓ Depth reached: ${quickResult.depth}`);
         console.log(`✓ Selective depth: ${quickResult.selDepth}`);
         console.log(`✓ Evaluation: ${quickResult.score.type} ${quickResult.score.score}`);
-        console.log(`✓ Best line: ${quickResult.pvs[0]?.join(' ') || 'No moves'}`);
+        console.log(`✓ Best line: ${quickResult.pvs[0] || 'No moves'}`);
         console.log('\n✅ Quick analysis example completed successfully!');
         
     } catch (error) {

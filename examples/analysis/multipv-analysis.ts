@@ -40,7 +40,7 @@ async function multiPVAnalysisExample() {
         console.log(`✓ Depth reached: ${multiPVResult.depth}\n`);
         
         multiPVResult.pvs.forEach((pv, index) => {
-            console.log(`Variation ${index + 1}: ${pv.join(' ')}`);
+            console.log(`Variation ${index + 1}: ${pv}`);
         });
         
         console.log('\n✅ Multi-PV analysis example completed successfully!');

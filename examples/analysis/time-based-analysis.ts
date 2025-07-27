@@ -46,7 +46,7 @@ async function timeBasedAnalysisExample() {
         console.log(`✓ Evaluation: ${timeResult.score.type} ${timeResult.score.score}\n`);
         
         timeResult.pvs.forEach((pv, index) => {
-            console.log(`Variation ${index + 1}: ${pv.join(' ')}`);
+            console.log(`Variation ${index + 1}: ${pv}`);
         });
         
         console.log('\n✅ Time-based analysis example completed successfully!');

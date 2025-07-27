@@ -46,7 +46,7 @@ async function tacticalAnalysisExample() {
             console.log(`✓ Evaluation: ${result.score.score} centipawns`);
         }
         
-        console.log(`✓ Best continuation: ${result.pvs[0]?.join(' ') || 'No moves'}`);
+        console.log(`✓ Best continuation: ${result.pvs[0] || 'No moves'}`);
         
         if (result.score.type === 'mate') {
             console.log('\n🎯 This position demonstrates a forced mate sequence!');

@@ -41,7 +41,7 @@ async function comprehensiveAnalysisExample() {
         
         console.log(`   ✓ Depth: ${quickResult.depth}`);
         console.log(`   ✓ Score: ${quickResult.score.type} ${quickResult.score.score}`);
-        console.log(`   ✓ Best line: ${quickResult.pvs[0]?.join(' ')}`);
+        console.log(`   ✓ Best line: ${quickResult.pvs[0] || 'No moves'}`);
         console.log('   ✅ Quick Analysis completed\n');
         passedExamples++;
         
@@ -67,7 +67,8 @@ async function comprehensiveAnalysisExample() {
         
         console.log(`   ✓ Analyzed ${multiPVResult.multiPV} variations`);
         multiPVResult.pvs.forEach((pv, index) => {
-            console.log(`   ✓ Line ${index + 1}: ${pv.slice(0, 5).join(' ')}...`);
+            const moves = pv.split(' ').slice(0, 5).join(' ');
+            console.log(`   ✓ Line ${index + 1}: ${moves}...`);
         });
         console.log('   ✅ Multi-PV Analysis completed\n');
         passedExamples++;
