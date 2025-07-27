@@ -13,6 +13,7 @@
   },
   "dependencies": {
     "@types/restify": "^8.5.12",
+    "chess.ts": "^0.16.2",
     "restify": "^11.1.0"
   },
   "devDependencies": {
