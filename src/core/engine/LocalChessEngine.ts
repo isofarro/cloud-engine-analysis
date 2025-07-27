@@ -7,7 +7,10 @@ export class LocalChessEngine extends ChessEngine {
     private _config: LocalEngineConfig;
 
     constructor(config: LocalEngineConfig) {
-        const process = spawn(config.enginePath);
+        const process = spawn(config.enginePath, [], {
+            stdio: ['pipe', 'pipe', 'pipe']
+        });
+
         const client = new UciClient(process, config.config);
         super(client);
         this._config = config;
