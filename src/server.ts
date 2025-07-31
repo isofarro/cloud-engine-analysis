@@ -2,7 +2,7 @@ import restify from 'restify';
 
 const server = restify.createServer({
   name: 'cloud-engine-analysis',
-  version: '1.0.0'
+  version: '1.0.0',
 });
 
 // Middleware
@@ -24,12 +24,12 @@ server.get('/health', (_req, res, next) => {
 
 // Root endpoint
 server.get('/', (_req, res, next) => {
-  res.send({ 
+  res.send({
     message: 'Welcome to Cloud Engine Analysis API',
     endpoints: {
       hello: '/hello',
-      health: '/health'
-    }
+      health: '/health',
+    },
   });
   return next();
 });
