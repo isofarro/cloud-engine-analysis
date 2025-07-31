@@ -370,8 +370,6 @@ export class AnalysisRepo implements IAnalysisRepo {
   async batchUpsertAnalysis(
     analyses: CreateAnalysisData[]
   ): Promise<Analysis[]> {
-    const results: Analysis[] = [];
-
     // Use transaction for better performance
     return new Promise((resolve, reject) => {
       const db = this.db; // Capture database reference for use in callbacks
@@ -399,7 +397,7 @@ export class AnalysisRepo implements IAnalysisRepo {
         let completed = 0;
         const total = analyses.length;
 
-        analyses.forEach((data, index) => {
+        analyses.forEach(data => {
           stmt.run(
             [
               data.position_id,

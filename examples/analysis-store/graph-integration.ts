@@ -65,7 +65,6 @@ async function graphIntegrationExample() {
     console.log('2. Exploring principal variation path...');
 
     const pvPath = PVUtils.getPrincipalVariationPath(
-      graph,
       analysisStore,
       tacticalPosition,
       5 // Max depth

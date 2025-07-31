@@ -80,7 +80,6 @@ export class PVUtils {
    * Returns an array of moves up to the specified maximum depth.
    */
   static getPrincipalVariationPath(
-    graph: ChessGraph,
     store: AnalysisStore,
     fen: string,
     maxDepth: number
