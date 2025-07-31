@@ -13,8 +13,10 @@
   },
   "dependencies": {
     "@types/restify": "^8.5.12",
+    "@types/sqlite3": "^5.1.0",
     "chess.ts": "^0.16.2",
-    "restify": "^11.1.0"
+    "restify": "^11.1.0",
+    "sqlite3": "^5.1.7"
   },
   "devDependencies": {
     "@types/node": "^22.10.5",
