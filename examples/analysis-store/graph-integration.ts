@@ -24,9 +24,6 @@ async function graphIntegrationExample() {
   const graph = new ChessGraph();
   const analysisStore = PVUtils.createAnalysisStore();
 
-  // Wait for database initialization
-  await service.initialize();
-
   try {
     // Example 1: Analyze a tactical position with multiple variations
     console.log('1. Analyzing tactical position with multiple PV lines...');

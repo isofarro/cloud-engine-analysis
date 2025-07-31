@@ -23,13 +23,6 @@ export class AnalysisStoreService {
   }
 
   /**
-   * Initialize the service (no-op since repository is injected).
-   */
-  async initialize(): Promise<void> {
-    // Repository is already initialized when injected
-  }
-
-  /**
    * Store an analysis result with automatic engine and position management.
    */
   async storeAnalysisResult(

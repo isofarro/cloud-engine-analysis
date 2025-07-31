@@ -18,9 +18,6 @@ async function basicUsageExample() {
   const repo = new AnalysisRepo(db);
   const service = new AnalysisStoreService(repo);
 
-  // Wait for database initialization
-  await service.initialize();
-
   try {
     // Example 1: Store a single analysis result
     console.log('1. Storing analysis result...');
