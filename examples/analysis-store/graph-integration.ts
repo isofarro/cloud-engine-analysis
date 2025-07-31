@@ -1,6 +1,7 @@
 import sqlite3 from 'sqlite3';
 import {
   AnalysisStoreService,
+  AnalysisRepo,
   AnalysisUtils,
   AnalysisStore,
   PVUtils,
@@ -18,7 +19,8 @@ async function graphIntegrationExample() {
 
   // Initialize components
   const db = new sqlite3.Database(':memory:');
-  const service = new AnalysisStoreService(db);
+  const repo = new AnalysisRepo(db);
+  const service = new AnalysisStoreService(repo);
   const graph = new ChessGraph();
   const analysisStore = PVUtils.createAnalysisStore();
 

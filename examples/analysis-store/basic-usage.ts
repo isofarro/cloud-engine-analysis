@@ -1,6 +1,7 @@
 import sqlite3 from 'sqlite3';
 import {
   AnalysisStoreService,
+  AnalysisRepo,
   AnalysisUtils,
 } from '../../src/core/analysis-store';
 import { AnalysisResult } from '../../src/core/engine/types';
@@ -14,7 +15,8 @@ async function basicUsageExample() {
 
   // Initialize in-memory SQLite database for this example
   const db = new sqlite3.Database(':memory:');
-  const service = new AnalysisStoreService(db);
+  const repo = new AnalysisRepo(db);
+  const service = new AnalysisStoreService(repo);
 
   // Wait for database initialization
   await service.initialize();

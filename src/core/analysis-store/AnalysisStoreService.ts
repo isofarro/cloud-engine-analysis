@@ -1,5 +1,4 @@
-import { Database } from 'sqlite3';
-import { AnalysisRepo } from './AnalysisRepo';
+import { IAnalysisRepo } from './IAnalysisRepo';
 import { AnalysisUtils } from './AnalysisUtils';
 import { AnalysisResult } from '../engine/types';
 import {
@@ -17,18 +16,17 @@ import { FenString } from '../types';
  * Provides a clean interface that abstracts away the repository layer.
  */
 export class AnalysisStoreService {
-  private repo: AnalysisRepo;
+  private repo: IAnalysisRepo;
 
-  constructor(database: Database) {
-    this.repo = new AnalysisRepo(database);
+  constructor(repo: IAnalysisRepo) {
+    this.repo = repo;
   }
 
   /**
-   * Initialize the service and wait for database setup.
+   * Initialize the service (no-op since repository is injected).
    */
   async initialize(): Promise<void> {
-    // Give the database time to initialize
-    await new Promise(resolve => setTimeout(resolve, 100));
+    // Repository is already initialized when injected
   }
 
   /**
@@ -139,7 +137,7 @@ export class AnalysisStoreService {
    * Get the underlying repository for advanced operations.
    * Use sparingly - prefer the service methods when possible.
    */
-  getRepository(): AnalysisRepo {
+  getRepository(): IAnalysisRepo {
     return this.repo;
   }
 }
