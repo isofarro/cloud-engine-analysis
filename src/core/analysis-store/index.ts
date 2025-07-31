@@ -4,3 +4,4 @@ export * from './AnalysisRepo';
 export * from './AnalysisUtils';
 export * from './AnalysisStore';
 export * from './PVUtils';
+export * from './AnalysisStoreService';

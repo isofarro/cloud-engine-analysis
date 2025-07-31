@@ -1,6 +1,6 @@
 import sqlite3 from 'sqlite3';
 import {
-  AnalysisRepo,
+  AnalysisStoreService,
   AnalysisUtils,
   AnalysisStore,
   PVUtils,
@@ -18,12 +18,12 @@ async function graphIntegrationExample() {
 
   // Initialize components
   const db = new sqlite3.Database(':memory:');
-  const repo = new AnalysisRepo(db);
+  const service = new AnalysisStoreService(db);
   const graph = new ChessGraph();
   const analysisStore = PVUtils.createAnalysisStore();
 
   // Wait for database initialization
-  await new Promise(resolve => setTimeout(resolve, 100));
+  await service.initialize();
 
   try {
     // Example 1: Analyze a tactical position with multiple variations
@@ -50,11 +50,7 @@ async function graphIntegrationExample() {
     };
 
     // Store in database
-    await AnalysisUtils.storeAnalysisResult(
-      repo,
-      multiPVResult,
-      'stockfish-17.0'
-    );
+    await service.storeAnalysisResult(multiPVResult, 'stockfish-17.0');
 
     // Add to graph and analysis store
     PVUtils.addAnalysisResultToGraph(graph, analysisStore, multiPVResult);
@@ -171,7 +167,7 @@ async function graphIntegrationExample() {
     }));
 
     // Store all positions in batch
-    await AnalysisUtils.batchStoreAnalysisResults(repo, batchResults);
+    await service.storeMultipleAnalysisResults(batchResults);
 
     // Add to graph
     batchResults.forEach(({ analysisResult }) => {
@@ -185,7 +181,7 @@ async function graphIntegrationExample() {
     // Example 5: Query analysis by depth and compare
     console.log('5. Querying high-depth analysis...');
 
-    const highDepthAnalysis = await repo.queryAnalysis({
+    const highDepthAnalysis = await service.queryAnalysis({
       min_depth: 16,
       limit: 5,
     });
@@ -209,7 +205,7 @@ async function graphIntegrationExample() {
     // Example 6: Performance statistics
     console.log('6. Performance and storage statistics...');
 
-    const dbStats = await repo.getStats();
+    const dbStats = await service.getStats();
     console.log(`✓ Database statistics:`);
     console.log(`  Total positions analyzed: ${dbStats.totalPositions}`);
     console.log(`  Total engines used: ${dbStats.totalEngines}`);

@@ -1,5 +1,8 @@
 import sqlite3 from 'sqlite3';
-import { AnalysisRepo, AnalysisUtils } from '../../src/core/analysis-store';
+import {
+  AnalysisStoreService,
+  AnalysisUtils,
+} from '../../src/core/analysis-store';
 import { AnalysisResult } from '../../src/core/engine/types';
 
 /**
@@ -11,10 +14,10 @@ async function basicUsageExample() {
 
   // Initialize in-memory SQLite database for this example
   const db = new sqlite3.Database(':memory:');
-  const repo = new AnalysisRepo(db);
+  const service = new AnalysisStoreService(db);
 
   // Wait for database initialization
-  await new Promise(resolve => setTimeout(resolve, 100));
+  await service.initialize();
 
   try {
     // Example 1: Store a single analysis result
@@ -32,18 +35,14 @@ async function basicUsageExample() {
       nps: 500000,
     };
 
-    await AnalysisUtils.storeAnalysisResult(
-      repo,
-      analysisResult,
-      'stockfish-17.0'
-    );
+    await service.storeAnalysisResult(analysisResult, 'stockfish-17.0');
 
     console.log('✓ Analysis stored successfully\n');
 
     // Example 2: Retrieve the stored analysis
     console.log('2. Retrieving analysis...');
 
-    const retrieved = await repo.getAnalysisByFenAndEngine(
+    const retrieved = await service.getAnalysis(
       analysisResult.fen,
       'stockfish-17.0'
     );
@@ -95,13 +94,13 @@ async function basicUsageExample() {
       },
     ];
 
-    await AnalysisUtils.batchStoreAnalysisResults(repo, multipleResults);
+    await service.storeMultipleAnalysisResults(multipleResults);
     console.log('✓ Multiple results stored successfully\n');
 
     // Example 4: Query analysis with filters
     console.log('4. Querying analysis with filters...');
 
-    const queryResults = await repo.queryAnalysis({
+    const queryResults = await service.queryAnalysis({
       engine_slug: 'stockfish-17.0',
       min_depth: 12,
       limit: 10,
@@ -120,8 +119,7 @@ async function basicUsageExample() {
     // Example 5: Find best analysis for a position
     console.log('5. Finding best analysis for starting position...');
 
-    const bestAnalysis = await AnalysisUtils.getBestAnalysisForPosition(
-      repo,
+    const bestAnalysis = await service.getBestAnalysisComparison(
       'rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq e3 0 1'
     );
 
@@ -139,7 +137,7 @@ async function basicUsageExample() {
     // Example 6: Database statistics
     console.log('6. Database statistics...');
 
-    const stats = await repo.getStats();
+    const stats = await service.getStats();
     console.log(`✓ Database contains:`);
     console.log(`  Positions: ${stats.totalPositions}`);
     console.log(`  Engines: ${stats.totalEngines}`);
