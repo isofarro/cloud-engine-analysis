@@ -1,7 +1,15 @@
 import { AnalysisResult } from '../engine/types';
 import { ChessGraph } from '../graph/ChessGraph';
 import { Chess } from 'chess.ts';
-import { AnalysisStore } from './AnalysisStore';
+
+/**
+ * In-memory analysis store for demonstration and testing purposes.
+ * Provides a simple interface for storing position and move analysis data.
+ */
+export interface AnalysisStore {
+  positions: Record<string, any>;
+  moves: Record<string, any>;
+}
 
 /**
  * Utility class for working with Principal Variations and analysis data.
