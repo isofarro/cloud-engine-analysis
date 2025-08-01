@@ -34,7 +34,7 @@ Shows advanced integration between the analysis store, chess graph, and PV utili
 
 **Key Features Shown:**
 - `ChessGraph` and `AnalysisStore` integration
-- `PVUtils` for processing principal variations
+- `AnalysisManager` for processing principal variations and managing analysis data
 - Move-by-move analysis tracking
 - Batch processing of game sequences
 - Statistical analysis of stored data
@@ -118,7 +118,7 @@ The examples demonstrate a clean separation of concerns:
 1. **`AnalysisRepo`**: Persistent storage layer using SQLite
 2. **`ChessGraph`**: Pure graph structure for move relationships
 3. **`AnalysisStore`**: In-memory lookup maps for analysis data
-4. **`PVUtils`**: Utility functions for integrating PV data
+4. **`AnalysisManager`**: Manager class for integrating analysis data and processing principal variations
 5. **`AnalysisUtils`**: Helper functions for data transformation
 
 ## Performance Considerations

@@ -3,8 +3,7 @@ import {
   AnalysisStoreService,
   AnalysisRepo,
   AnalysisUtils,
-  AnalysisStore,
-  PVUtils,
+  AnalysisManager,
 } from '../../src/core/analysis-store';
 import { ChessGraph } from '../../src/core/graph/ChessGraph';
 import { AnalysisResult } from '../../src/core/engine/types';
@@ -22,7 +21,7 @@ async function graphIntegrationExample() {
   const repo = new AnalysisRepo(db);
   const service = new AnalysisStoreService(repo);
   const graph = new ChessGraph();
-  const analysisStore = PVUtils.createAnalysisStore();
+  const analysisStore = AnalysisManager.createAnalysisStore();
 
   try {
     // Example 1: Analyze a tactical position with multiple variations
@@ -52,14 +51,18 @@ async function graphIntegrationExample() {
     await service.storeAnalysisResult(multiPVResult, 'stockfish-17.0');
 
     // Add to graph and analysis store
-    PVUtils.addAnalysisResultToGraph(graph, analysisStore, multiPVResult);
+    AnalysisManager.addAnalysisResultToGraph(
+      graph,
+      analysisStore,
+      multiPVResult
+    );
 
     console.log('✓ Multi-PV analysis integrated into graph and database\n');
 
     // Example 2: Explore the principal variation
     console.log('2. Exploring principal variation path...');
 
-    const pvPath = PVUtils.getPrincipalVariationPath(
+    const pvPath = AnalysisManager.getPrincipalVariationPath(
       analysisStore,
       tacticalPosition,
       5 // Max depth
@@ -74,7 +77,7 @@ async function graphIntegrationExample() {
     for (let i = 0; i < pvPath.length; i++) {
       const move = pvPath[i];
       chess.move(move);
-      const moveAnalysis = PVUtils.getMoveAnalysis(
+      const moveAnalysis = AnalysisManager.getMoveAnalysis(
         analysisStore,
         i === 0 ? tacticalPosition : chess.fen(),
         move
@@ -97,7 +100,7 @@ async function graphIntegrationExample() {
       console.log(`✓ Found ${positionNode.moves.length} possible moves:`);
 
       for (const moveEdge of positionNode.moves) {
-        const moveAnalysis = PVUtils.getMoveAnalysis(
+        const moveAnalysis = AnalysisManager.getMoveAnalysis(
           analysisStore,
           tacticalPosition,
           moveEdge.move
@@ -170,7 +173,11 @@ async function graphIntegrationExample() {
 
     // Add to graph
     batchResults.forEach(({ analysisResult }) => {
-      PVUtils.addAnalysisResultToGraph(graph, analysisStore, analysisResult);
+      AnalysisManager.addAnalysisResultToGraph(
+        graph,
+        analysisStore,
+        analysisResult
+      );
     });
 
     console.log(

@@ -12,10 +12,11 @@ export interface AnalysisStore {
 }
 
 /**
- * Utility class for working with Principal Variations and analysis data.
- * Provides methods for integrating analysis results with chess graphs and stores.
+ * Manager class for analysis data operations and integration.
+ * Provides methods for creating analysis stores, integrating analysis results
+ * with chess graphs, and retrieving analysis data.
  */
-export class PVUtils {
+export class AnalysisManager {
   /**
    * Creates a new empty analysis store.
    */
