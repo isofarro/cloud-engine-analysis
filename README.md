@@ -99,6 +99,53 @@ cloud-engine-analysis/
 └── README.md             # This file
 ```
 
+## Scripts
+
+### EPD Import Script
+
+The `import-epd.ts` script allows you to import EPD (Extended Position Description) files into the Analysis Store database.
+
+#### Usage
+
+```bash
+npx tsx scripts/import-epd.ts <epd-file> <database-file> [engine-slug]
+```
+
+#### Arguments
+
+- `epd-file`: Path to the EPD file to import
+- `database-file`: Path to the SQLite database file (created if it doesn't exist)
+- `engine-slug`: Optional engine identifier (default: `epd-import-1.0`)
+
+#### Examples
+
+```bash
+# Import EPD file with default engine slug
+npx tsx scripts/import-epd.ts ./tmp/positions.epd ./data/analysis.db
+
+# Import with custom engine identifier
+npx tsx scripts/import-epd.ts ./tmp/positions.epd ./data/analysis.db stockfish-17.0
+```
+
+#### EPD Format
+
+The script expects EPD files where each line contains:
+- FEN position
+- Analysis data including centipawn evaluation (`ce`), depth (`acd`), time (`acn`), nodes (`an`), and principal variation (`pv`)
+
+Example EPD line:
+```
+rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - ce 20 acd 15 acn 1000 an 50000 pv e2e4 e7e5
+```
+
+#### Features
+
+- **Robust parsing**: Handles various FEN formats and analysis data
+- **Database integration**: Uses existing Analysis Store infrastructure
+- **Progress reporting**: Shows import progress every 100 positions
+- **Statistics**: Displays comprehensive import statistics
+- **Error handling**: Skips malformed lines and continues processing
+
 ## Environment Variables
 
 - `PORT`: Server port (default: 3001)
