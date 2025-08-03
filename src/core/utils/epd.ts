@@ -67,7 +67,9 @@ export function parseEPD(line: string): ParsedEPD | null {
 /**
  * Transforms a parsed EPD structure into an AnalysisResult.
  */
-export function formatEPDAsAnalysisResult(parsedEPD: ParsedEPD): AnalysisResult | null {
+export function formatEPDAsAnalysisResult(
+  parsedEPD: ParsedEPD
+): AnalysisResult | null {
   const { fen, operations } = parsedEPD;
 
   // Extract required analysis data from operations

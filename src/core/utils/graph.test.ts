@@ -32,12 +32,13 @@ describe('Graph Utils', () => {
       const content = JSON.parse(fs.readFileSync(filePath, 'utf-8'));
       expect(content).toEqual({
         rootPosition: undefined,
-        nodes: {}
+        nodes: {},
       });
     });
 
     it('should save a graph with root position', () => {
-      const rootFen = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
+      const rootFen =
+        'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
       const graph = new ChessGraph(rootFen);
       const filePath = saveGraph(graph, 'root-graph.json', TEST_DIR);
 
@@ -46,8 +47,10 @@ describe('Graph Utils', () => {
     });
 
     it('should save a graph with moves', () => {
-      const startFen = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
-      const afterE4Fen = 'rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq e3 0 1';
+      const startFen =
+        'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
+      const afterE4Fen =
+        'rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq e3 0 1';
 
       const graph = new ChessGraph(startFen);
       graph.addMove(startFen, { move: 'e2e4', toFen: afterE4Fen }, true);
@@ -56,11 +59,13 @@ describe('Graph Utils', () => {
       const content = JSON.parse(fs.readFileSync(filePath, 'utf-8'));
 
       expect(content.nodes[startFen]).toEqual({
-        moves: [{
-          move: 'e2e4',
-          toFen: afterE4Fen,
-          seq: 1
-        }]
+        moves: [
+          {
+            move: 'e2e4',
+            toFen: afterE4Fen,
+            seq: 1,
+          },
+        ],
       });
     });
 
@@ -109,7 +114,8 @@ describe('Graph Utils', () => {
     });
 
     it('should load a graph with root position', () => {
-      const rootFen = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
+      const rootFen =
+        'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
       const originalGraph = new ChessGraph(rootFen);
       const filePath = saveGraph(originalGraph, 'root.json', TEST_DIR);
 
@@ -119,13 +125,23 @@ describe('Graph Utils', () => {
     });
 
     it('should load a graph with moves and preserve structure', () => {
-      const startFen = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
-      const afterE4Fen = 'rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq e3 0 1';
-      const afterE5Fen = 'rnbqkbnr/pppp1ppp/8/4p3/4P3/8/PPPP1PPP/RNBQKBNR w KQkq e6 0 2';
+      const startFen =
+        'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
+      const afterE4Fen =
+        'rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq e3 0 1';
+      const afterE5Fen =
+        'rnbqkbnr/pppp1ppp/8/4p3/4P3/8/PPPP1PPP/RNBQKBNR w KQkq e6 0 2';
 
       const originalGraph = new ChessGraph(startFen);
-      originalGraph.addMove(startFen, { move: 'e2e4', toFen: afterE4Fen }, true);
-      originalGraph.addMove(startFen, { move: 'd2d4', toFen: 'rnbqkbnr/pppppppp/8/8/3P4/8/PPP1PPPP/RNBQKBNR b KQkq d3 0 1' });
+      originalGraph.addMove(
+        startFen,
+        { move: 'e2e4', toFen: afterE4Fen },
+        true
+      );
+      originalGraph.addMove(startFen, {
+        move: 'd2d4',
+        toFen: 'rnbqkbnr/pppppppp/8/8/3P4/8/PPP1PPPP/RNBQKBNR b KQkq d3 0 1',
+      });
       originalGraph.addMove(afterE4Fen, { move: 'e7e5', toFen: afterE5Fen });
 
       const filePath = saveGraph(originalGraph, 'complex.json', TEST_DIR);
@@ -149,7 +165,9 @@ describe('Graph Utils', () => {
     });
 
     it('should throw error for non-existent file', () => {
-      expect(() => loadGraph('./non-existent-file.json')).toThrow('Graph file not found');
+      expect(() => loadGraph('./non-existent-file.json')).toThrow(
+        'Graph file not found'
+      );
     });
 
     it('should throw error for invalid JSON', () => {
@@ -157,15 +175,26 @@ describe('Graph Utils', () => {
       fs.mkdirSync(TEST_DIR, { recursive: true });
       fs.writeFileSync(invalidJsonFile, 'invalid json content', 'utf-8');
 
-      expect(() => loadGraph(invalidJsonFile)).toThrow('Invalid JSON in graph file');
+      expect(() => loadGraph(invalidJsonFile)).toThrow(
+        'Invalid JSON in graph file'
+      );
     });
 
     it('should throw error for invalid graph structure', () => {
-      const invalidStructureFile = path.join(TEST_DIR, 'invalid-structure.json');
+      const invalidStructureFile = path.join(
+        TEST_DIR,
+        'invalid-structure.json'
+      );
       fs.mkdirSync(TEST_DIR, { recursive: true });
-      fs.writeFileSync(invalidStructureFile, JSON.stringify('not an object'), 'utf-8');
+      fs.writeFileSync(
+        invalidStructureFile,
+        JSON.stringify('not an object'),
+        'utf-8'
+      );
 
-      expect(() => loadGraph(invalidStructureFile)).toThrow('Invalid graph file: root must be an object');
+      expect(() => loadGraph(invalidStructureFile)).toThrow(
+        'Invalid graph file: root must be an object'
+      );
     });
   });
 
@@ -211,7 +240,8 @@ describe('Graph Utils', () => {
 
   describe('round-trip consistency', () => {
     it('should maintain graph integrity through save and load cycle', () => {
-      const startFen = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
+      const startFen =
+        'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
       const originalGraph = new ChessGraph(startFen);
 
       // Add multiple moves with different sequences
@@ -230,7 +260,9 @@ describe('Graph Utils', () => {
       const originalStartNode = originalGraph.findPosition(startFen);
       const loadedStartNode = loadedGraph.findPosition(startFen);
 
-      expect(loadedStartNode?.moves).toHaveLength(originalStartNode?.moves.length);
+      expect(loadedStartNode?.moves).toHaveLength(
+        originalStartNode?.moves.length
+      );
 
       // Check move order and sequences are preserved
       originalStartNode?.moves.forEach((originalMove, index) => {

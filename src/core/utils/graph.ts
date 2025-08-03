@@ -46,7 +46,7 @@ export function saveGraph(
   // Serialize the graph
   const serializedGraph: SerializedChessGraph = {
     rootPosition: graph.rootPosition,
-    nodes: graph.nodes
+    nodes: graph.nodes,
   };
 
   // Write to file
@@ -91,10 +91,14 @@ export function loadGraph(filePath: string): ChessGraph {
       Object.entries(serializedGraph.nodes).forEach(([fen, node]) => {
         // Add each move to rebuild the graph structure
         node.moves.forEach(moveEdge => {
-          graph.addMove(fen, {
-            move: moveEdge.move,
-            toFen: moveEdge.toFen
-          }, moveEdge.seq === 1); // Primary move if seq is 1
+          graph.addMove(
+            fen,
+            {
+              move: moveEdge.move,
+              toFen: moveEdge.toFen,
+            },
+            moveEdge.seq === 1
+          ); // Primary move if seq is 1
         });
       });
     }
@@ -119,7 +123,8 @@ export function listGraphFiles(directory: string = './graphs'): string[] {
     return [];
   }
 
-  return fs.readdirSync(directory)
+  return fs
+    .readdirSync(directory)
     .filter(file => file.endsWith('.json'))
     .map(file => path.join(directory, file));
 }
