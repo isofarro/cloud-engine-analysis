@@ -219,17 +219,18 @@ async function graphIntegrationExample() {
     console.log(`  Average analysis depth: ${dbStats.avgDepth}`);
 
     // Graph statistics
-    const graphStats = {
-      totalNodes: Object.keys(graph['nodes']).length,
-      totalMoves: Object.values(graph['nodes']).reduce(
-        (sum: number, node: any) => sum + node.moves.length,
-        0
-      ),
-    };
-
     console.log(`\n✓ Graph statistics:`);
-    console.log(`  Total position nodes: ${graphStats.totalNodes}`);
-    console.log(`  Total move edges: ${graphStats.totalMoves}`);
+    console.log(
+      `  Total positions in graph: ${Object.keys(graph.nodes).length}`
+    );
+    console.log(`  Root position: ${graph.rootPosition || 'Not set'}`);
+
+    // Calculate total moves across all positions
+    const totalMoves = Object.values(graph.nodes).reduce(
+      (sum, node) => sum + node.moves.length,
+      0
+    );
+    console.log(`  Total moves stored: ${totalMoves}`);
 
     // Analysis store statistics
     const storeStats = {

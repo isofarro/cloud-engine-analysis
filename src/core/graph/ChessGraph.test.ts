@@ -352,4 +352,57 @@ describe('ChessGraph', () => {
       expect(afterE4Position!.moves[1].move).toBe('e7e5');
     });
   });
+
+  describe('rootPosition', () => {
+    it('should initialize with undefined rootPosition by default', () => {
+      const graph = new ChessGraph();
+      expect(graph.rootPosition).toBeUndefined();
+    });
+
+    it('should initialize with provided rootPosition', () => {
+      const graph = new ChessGraph(startingFen);
+      expect(graph.rootPosition).toBe(startingFen);
+    });
+
+    it('should set and get rootPosition using setter/getter', () => {
+      const graph = new ChessGraph();
+
+      // Initially undefined
+      expect(graph.rootPosition).toBeUndefined();
+
+      // Set using setter
+      graph.rootPosition = startingFen;
+      expect(graph.rootPosition).toBe(startingFen);
+
+      // Change to different position
+      graph.rootPosition = afterE4Fen;
+      expect(graph.rootPosition).toBe(afterE4Fen);
+
+      // Set back to undefined
+      graph.rootPosition = undefined;
+      expect(graph.rootPosition).toBeUndefined();
+    });
+
+    it('should maintain rootPosition independently of moves', () => {
+      const graph = new ChessGraph(startingFen);
+
+      const move: Move = {
+        move: 'e2e4',
+        toFen: afterE4Fen,
+      };
+
+      // Add moves but rootPosition should remain unchanged
+      graph.addMove(startingFen, move);
+      expect(graph.rootPosition).toBe(startingFen);
+
+      // Change rootPosition but moves should remain
+      graph.rootPosition = afterE4Fen;
+      expect(graph.rootPosition).toBe(afterE4Fen);
+
+      const position = graph.findPosition(startingFen);
+      expect(position).toBeDefined();
+      expect(position!.moves).toHaveLength(1);
+      expect(position!.moves[0].move).toBe('e2e4');
+    });
+  });
 });

@@ -3,15 +3,29 @@ import type { IChessGraph } from './iChessGraph';
 import type { Move, PositionNodeMap } from './types';
 
 export class ChessGraph implements IChessGraph {
-  nodes: PositionNodeMap;
+  private _nodes: PositionNodeMap;
+  private _rootPosition?: FenString;
 
-  constructor() {
-    this.nodes = {};
+  constructor(rootPosition?: FenString) {
+    this._nodes = {};
+    this._rootPosition = rootPosition;
+  }
+
+  get rootPosition(): FenString | undefined {
+    return this._rootPosition;
+  }
+
+  set rootPosition(fen: FenString | undefined) {
+    this._rootPosition = fen;
+  }
+
+  get nodes(): PositionNodeMap {
+    return this._nodes;
   }
 
   addMove(fromFen: FenString, move: Move, isPrimaryMove: boolean = false) {
-    if (fromFen in this.nodes) {
-      const existingMoveIndex = this.nodes[fromFen].moves.findIndex(
+    if (fromFen in this._nodes) {
+      const existingMoveIndex = this._nodes[fromFen].moves.findIndex(
         moveEdge => move.toFen === moveEdge.toFen
       );
 
@@ -19,18 +33,18 @@ export class ChessGraph implements IChessGraph {
         // Move already exists
         if (isPrimaryMove) {
           // Remove existing move and promote it to primary
-          const existingMove = this.nodes[fromFen].moves.splice(
+          const existingMove = this._nodes[fromFen].moves.splice(
             existingMoveIndex,
             1
           )[0];
 
           // Reassign sequence numbers for all remaining moves
-          this.nodes[fromFen].moves.forEach((moveEdge, index) => {
+          this._nodes[fromFen].moves.forEach((moveEdge, index) => {
             moveEdge.seq = index + 2; // Start from 2 since promoted move will be 1
           });
 
           // Insert as first move with seq=1
-          this.nodes[fromFen].moves.unshift({
+          this._nodes[fromFen].moves.unshift({
             ...existingMove,
             seq: 1,
           });
@@ -40,23 +54,23 @@ export class ChessGraph implements IChessGraph {
         // New move
         if (isPrimaryMove) {
           // Insert as first move with seq=1 and increment all other moves
-          this.nodes[fromFen].moves.forEach(moveEdge => {
+          this._nodes[fromFen].moves.forEach(moveEdge => {
             moveEdge.seq += 1;
           });
-          this.nodes[fromFen].moves.unshift({
+          this._nodes[fromFen].moves.unshift({
             ...move,
             seq: 1,
           });
         } else {
           // Add as normal with next available seq
-          this.nodes[fromFen].moves.push({
+          this._nodes[fromFen].moves.push({
             ...move,
-            seq: this.nodes[fromFen].moves.length + 1,
+            seq: this._nodes[fromFen].moves.length + 1,
           });
         }
       }
     } else {
-      this.nodes[fromFen] = {
+      this._nodes[fromFen] = {
         moves: [
           {
             ...move,
@@ -69,6 +83,6 @@ export class ChessGraph implements IChessGraph {
   }
 
   findPosition(fen: FenString) {
-    return this.nodes[fen];
+    return this._nodes[fen];
   }
 }
