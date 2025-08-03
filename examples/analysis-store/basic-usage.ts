@@ -148,19 +148,18 @@ async function basicUsageExample() {
 
     // Example for White to move
     const eval1White = {
-      score: 25,
+      score: 150,
       scoreType: 'cp' as const,
-      isWhiteToMove: true,
     };
     const eval2White = {
       score: 3,
       scoreType: 'mate' as const,
-      isWhiteToMove: true,
     };
 
     const comparisonWhite = AnalysisUtils.compareEvaluations(
       eval1White,
-      eval2White
+      eval2White,
+      true
     );
     console.log(
       `White to move - Comparing ${AnalysisUtils.formatEvaluation(eval1White.score, eval1White.scoreType)} vs ${AnalysisUtils.formatEvaluation(eval2White.score, eval2White.scoreType)}:`
@@ -173,17 +172,16 @@ async function basicUsageExample() {
     const eval1Black = {
       score: 25,
       scoreType: 'cp' as const,
-      isWhiteToMove: false,
     };
     const eval2Black = {
       score: -3,
       scoreType: 'mate' as const,
-      isWhiteToMove: false,
     };
 
     const comparisonBlack = AnalysisUtils.compareEvaluations(
       eval1Black,
-      eval2Black
+      eval2Black,
+      false
     );
     console.log(
       `Black to move - Comparing ${AnalysisUtils.formatEvaluation(eval1Black.score, eval1Black.scoreType)} vs ${AnalysisUtils.formatEvaluation(eval2Black.score, eval2Black.scoreType)}:`

@@ -13,15 +13,10 @@ export class AnalysisUtils {
    * For Black to move: lower scores are better (scores are from perspective of side to move)
    */
   static compareEvaluations(
-    eval1: { score: number; scoreType: ScoreType; isWhiteToMove: boolean },
-    eval2: { score: number; scoreType: ScoreType; isWhiteToMove: boolean }
+    eval1: { score: number; scoreType: ScoreType },
+    eval2: { score: number; scoreType: ScoreType },
+    isWhiteToMove: boolean
   ): number {
-    // Both evaluations must be from the same perspective
-    if (eval1.isWhiteToMove !== eval2.isWhiteToMove) {
-      throw new Error('Cannot compare evaluations from different perspectives');
-    }
-
-    const isWhiteToMove = eval1.isWhiteToMove;
 
     // Helper function to determine if score1 is better than score2
     const isBetterScore = (
