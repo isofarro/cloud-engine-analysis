@@ -147,15 +147,28 @@ export function deleteGraph(filePath: string): boolean {
 /**
  * Prints a chess graph as an ASCII tree structure in the terminal
  * Uses pipe characters to show branching when positions have multiple moves
+ *
+ * @param graph - The ChessGraph to print
+ * @param maxDepth - Maximum depth to traverse (default: 10)
+ * @param verbose - If true, shows detailed info (FEN, move counts). If false, shows compact view (default: false)
  */
-export function printGraph(graph: ChessGraph, maxDepth: number = 10): void {
+export function printGraph(
+  graph: ChessGraph,
+  maxDepth: number = 10,
+  verbose: boolean = false
+): void {
   if (!graph.rootPosition) {
     console.log('📊 Empty graph (no root position)');
     return;
   }
 
-  console.log('📊 Chess Graph Structure:');
-  console.log(`Root: ${graph.rootPosition}`);
+  if (verbose) {
+    console.log('📊 Chess Graph Structure (Verbose):');
+    console.log(`Root: ${graph.rootPosition}`);
+  } else {
+    console.log('📊 Chess Graph Structure:');
+    console.log(`Root: ${graph.rootPosition.split(' ')[0]}`);
+  }
   console.log('');
 
   const visited = new Set<string>();
@@ -167,7 +180,7 @@ export function printGraph(graph: ChessGraph, maxDepth: number = 10): void {
   ): void {
     if (depth >= maxDepth || visited.has(fen)) {
       if (visited.has(fen)) {
-        console.log(`${prefix}└─ [Already shown: ${fen.split(' ')[0]}]`);
+        console.log(`${prefix}└─ [↻ ${fen.split(' ')[0]}]`);
       } else {
         console.log(`${prefix}└─ [Max depth reached]`);
       }
@@ -188,53 +201,71 @@ export function printGraph(graph: ChessGraph, maxDepth: number = 10): void {
       const connector = isLast ? '└─' : '├─';
       const nextPrefix = prefix + (isLast ? '   ' : '│  ');
 
-      // Show move with sequence indicator
-      const seqIndicator = move.seq === 1 ? ' (main)' : ` (${move.seq})`;
-      console.log(`${prefix}${connector} ${move.move}${seqIndicator}`);
+      if (verbose) {
+        // Verbose mode: show move with sequence indicator
+        const seqIndicator = move.seq === 1 ? ' (main)' : ` (${move.seq})`;
+        console.log(`${prefix}${connector} ${move.move}${seqIndicator}`);
 
-      // Show target position info
-      const targetFen = move.toFen;
-      const targetNode = graph.findPosition(targetFen);
-      const targetMoveCount = targetNode?.moves.length || 0;
+        // Show target position info
+        const targetFen = move.toFen;
+        const targetNode = graph.findPosition(targetFen);
+        const targetMoveCount = targetNode?.moves.length || 0;
 
-      if (targetMoveCount > 0) {
-        console.log(`${nextPrefix}│`);
-        console.log(`${nextPrefix}├─ Position: ${targetFen.split(' ')[0]}`);
-        console.log(`${nextPrefix}├─ Moves: ${targetMoveCount}`);
-        console.log(`${nextPrefix}│`);
+        if (targetMoveCount > 0) {
+          console.log(`${nextPrefix}│`);
+          console.log(`${nextPrefix}├─ Position: ${targetFen.split(' ')[0]}`);
+          console.log(`${nextPrefix}├─ Moves: ${targetMoveCount}`);
+          console.log(`${nextPrefix}│`);
 
-        // Recursively print child moves
-        printNode(targetFen, nextPrefix, depth + 1);
+          // Recursively print child moves
+          printNode(targetFen, nextPrefix, depth + 1);
+        } else {
+          console.log(
+            `${nextPrefix}└─ Position: ${targetFen.split(' ')[0]} (leaf)`
+          );
+        }
       } else {
-        console.log(
-          `${nextPrefix}└─ Position: ${targetFen.split(' ')[0]} (leaf)`
-        );
+        // Compact mode: just show the move
+        const targetFen = move.toFen;
+        const targetNode = graph.findPosition(targetFen);
+        const targetMoveCount = targetNode?.moves.length || 0;
+
+        if (targetMoveCount > 0) {
+          console.log(`${prefix}${connector} ${move.move}`);
+          // Recursively print child moves
+          printNode(targetFen, nextPrefix, depth + 1);
+        } else {
+          // Leaf node: just the move
+          console.log(`${prefix}${connector} ${move.move}`);
+        }
       }
     });
   }
 
   printNode(graph.rootPosition);
 
-  // Print summary statistics
-  console.log('');
-  console.log('📈 Graph Statistics:');
-  console.log(`├─ Total positions: ${Object.keys(graph.nodes).length}`);
+  // Print summary statistics only in verbose mode
+  if (verbose) {
+    console.log('');
+    console.log('📈 Graph Statistics:');
+    console.log(`├─ Total positions: ${Object.keys(graph.nodes).length}`);
 
-  let totalMoves = 0;
-  let leafPositions = 0;
-  let branchingPositions = 0;
+    let totalMoves = 0;
+    let leafPositions = 0;
+    let branchingPositions = 0;
 
-  Object.values(graph.nodes).forEach(node => {
-    totalMoves += node.moves.length;
-    if (node.moves.length === 0) {
-      leafPositions++;
-    } else if (node.moves.length > 1) {
-      branchingPositions++;
-    }
-  });
+    Object.values(graph.nodes).forEach(node => {
+      totalMoves += node.moves.length;
+      if (node.moves.length === 0) {
+        leafPositions++;
+      } else if (node.moves.length > 1) {
+        branchingPositions++;
+      }
+    });
 
-  console.log(`├─ Total moves: ${totalMoves}`);
-  console.log(`├─ Leaf positions: ${leafPositions}`);
-  console.log(`├─ Branching positions: ${branchingPositions}`);
-  console.log(`└─ Max depth shown: ${Math.min(maxDepth, visited.size)}`);
+    console.log(`├─ Total moves: ${totalMoves}`);
+    console.log(`├─ Leaf positions: ${leafPositions}`);
+    console.log(`├─ Branching positions: ${branchingPositions}`);
+    console.log(`└─ Max depth shown: ${Math.min(maxDepth, visited.size)}`);
+  }
 }

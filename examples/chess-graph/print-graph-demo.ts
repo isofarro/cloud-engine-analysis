@@ -90,24 +90,29 @@ function main() {
   console.log('🎯 Chess Graph ASCII Tree Visualization Demo\n');
 
   console.log('='.repeat(60));
-  console.log('📋 Example 1: Sicilian Defense Opening Tree');
+  console.log('📋 Example 1: Sicilian Defense Opening Tree (Compact Mode)');
   console.log('='.repeat(60));
   const sicilianTree = createSicilianDefenseTree();
-  printGraph(sicilianTree);
+  printGraph(sicilianTree); // Default compact mode
 
   console.log('\n' + '='.repeat(60));
-  console.log("📋 Example 2: King's Indian Defense Setup");
+  console.log('📋 Example 2: Same Tree in Verbose Mode');
+  console.log('='.repeat(60));
+  printGraph(sicilianTree, 10, true); // Verbose mode
+
+  console.log('\n' + '='.repeat(60));
+  console.log("📋 Example 3: King's Indian Defense Setup (Compact)");
   console.log('='.repeat(60));
   const kingsIndianTree = createKingsIndianTree();
   printGraph(kingsIndianTree);
 
   console.log('\n' + '='.repeat(60));
-  console.log('📋 Example 3: Limited Depth View (maxDepth=2)');
+  console.log('📋 Example 4: Limited Depth View (maxDepth=2)');
   console.log('='.repeat(60));
   printGraph(sicilianTree, 2);
 
   console.log('\n' + '='.repeat(60));
-  console.log('📋 Example 4: Empty Graph');
+  console.log('📋 Example 5: Empty Graph');
   console.log('='.repeat(60));
   const emptyGraph = new ChessGraph();
   printGraph(emptyGraph);
@@ -119,6 +124,9 @@ function main() {
   console.log('   • Position information and move counts');
   console.log('   • Graph statistics summary');
   console.log('   • Depth limiting to prevent overwhelming output');
+  console.log(
+    '   • Compact mode (default) vs verbose mode with full FEN strings'
+  );
 }
 
 // Run the demo if this file is executed directly

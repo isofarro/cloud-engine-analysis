@@ -301,29 +301,59 @@ describe('printGraph', () => {
     );
   });
 
-  it('should print simple linear graph', () => {
+  it('should print compact mode by default', () => {
     const startFen = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
     const graph = new ChessGraph(startFen);
     const afterE4 =
       'rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq e3 0 1';
-    const afterE5 =
-      'rnbqkbnr/pppp1ppp/8/4p3/4P3/8/PPPP1PPP/RNBQKBNR w KQkq e6 0 2';
 
     graph.addMove(startFen, { move: 'e4', toFen: afterE4 });
-    graph.addMove(afterE4, { move: 'e5', toFen: afterE5 });
 
     printGraph(graph);
 
-    expect(consoleSpy).toHaveBeenCalledWith('📊 Chess Graph Structure:');
-    expect(consoleSpy).toHaveBeenCalledWith(
-      'Root: rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1'
-    );
-    expect(consoleSpy).toHaveBeenCalledWith(
-      expect.stringContaining('└─ e4 (main)')
-    );
+    const calls = consoleSpy.mock.calls.map((call: any) => call[0]);
+    // Should show compact structure header
+    expect(
+      calls.some((call: string) => call.includes('📊 Chess Graph Structure:'))
+    ).toBe(true);
+    // Should show just the move without sequence indicators
+    expect(
+      calls.some(
+        (call: string) => call.includes('└─ e4') && !call.includes('(main)')
+      )
+    ).toBe(true);
+    // Should NOT show statistics in compact mode
+    expect(
+      calls.some((call: string) => call.includes('📈 Graph Statistics:'))
+    ).toBe(false);
   });
 
-  it('should print branching graph with multiple moves', () => {
+  it('should print verbose mode when requested', () => {
+    const startFen = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
+    const graph = new ChessGraph(startFen);
+    const afterE4 =
+      'rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq e3 0 1';
+
+    graph.addMove(startFen, { move: 'e4', toFen: afterE4 });
+
+    printGraph(graph, 10, true);
+
+    const calls = consoleSpy.mock.calls.map((call: any) => call[0]);
+    // Should show verbose structure header
+    expect(
+      calls.some((call: string) =>
+        call.includes('📊 Chess Graph Structure (Verbose):')
+      )
+    ).toBe(true);
+    // Should show move with sequence indicator
+    expect(calls.some((call: string) => call.includes('e4 (main)'))).toBe(true);
+    // Should show statistics in verbose mode
+    expect(
+      calls.some((call: string) => call.includes('📈 Graph Statistics:'))
+    ).toBe(true);
+  });
+
+  it('should print branching graph in compact mode', () => {
     const startFen = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
     const graph = new ChessGraph(startFen);
     const afterE4 =
@@ -336,39 +366,16 @@ describe('printGraph', () => {
 
     printGraph(graph);
 
-    // Should show both moves as branches
     const calls = consoleSpy.mock.calls.map((call: any) => call[0]);
-    const hasE4Branch = calls.some(
-      (call: string) => call.includes('├─ e4') || call.includes('└─ e4')
-    );
-    const hasD4Branch = calls.some(
-      (call: string) => call.includes('├─ d4') || call.includes('└─ d4')
-    );
-
-    expect(hasE4Branch).toBe(true);
-    expect(hasD4Branch).toBe(true);
-  });
-
-  it('should show statistics', () => {
-    const startFen = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
-    const graph = new ChessGraph(startFen);
-    const afterE4 =
-      'rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq e3 0 1';
-
-    graph.addMove(startFen, { move: 'e4', toFen: afterE4 });
-
-    printGraph(graph);
-
-    expect(consoleSpy).toHaveBeenCalledWith('📈 Graph Statistics:');
-    expect(consoleSpy).toHaveBeenCalledWith(
-      expect.stringContaining('Total positions:')
-    );
-    expect(consoleSpy).toHaveBeenCalledWith(
-      expect.stringContaining('Total moves:')
-    );
-    expect(consoleSpy).toHaveBeenCalledWith(
-      expect.stringContaining('Leaf positions:')
-    );
+    // Should show both moves without sequence indicators
+    expect(
+      calls.some(
+        (call: string) => call.includes('e4') && !call.includes('(main)')
+      )
+    ).toBe(true);
+    expect(
+      calls.some((call: string) => call.includes('d4') && !call.includes('(2)'))
+    ).toBe(true);
   });
 
   it('should respect maxDepth parameter', () => {
@@ -378,20 +385,41 @@ describe('printGraph', () => {
       'rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq e3 0 1';
     const afterE5 =
       'rnbqkbnr/pppp1ppp/8/4p3/4P3/8/PPPP1PPP/RNBQKBNR w KQkq e6 0 2';
-    const afterNf3 =
-      'rnbqkbnr/pppp1ppp/8/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R b KQkq - 1 2';
 
     graph.addMove(startFen, { move: 'e4', toFen: afterE4 });
     graph.addMove(afterE4, { move: 'e5', toFen: afterE5 });
-    graph.addMove(afterE5, { move: 'Nf3', toFen: afterNf3 });
 
     printGraph(graph, 0);
 
     const calls = consoleSpy.mock.calls.map((call: any) => call[0]);
-    const hasMaxDepthMessage = calls.some((call: string) =>
-      call.includes('[Max depth reached]')
-    );
+    expect(
+      calls.some((call: string) => call.includes('[Max depth reached]'))
+    ).toBe(true);
+  });
 
-    expect(hasMaxDepthMessage).toBe(true);
+  it('should show transposition indicator', () => {
+    const startFen = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
+    const graph = new ChessGraph(startFen);
+    const afterE4 =
+      'rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq e3 0 1';
+    const afterE5 =
+      'rnbqkbnr/pppp1ppp/8/4p3/4P3/8/PPPP1PPP/RNBQKBNR w KQkq e6 0 2';
+    const afterNf3 =
+      'rnbqkbnr/pppp1ppp/8/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R b KQkq - 1 2';
+
+    // Create a path: start -> e4 -> e5 -> Nf3
+    graph.addMove(startFen, { move: 'e4', toFen: afterE4 });
+    graph.addMove(afterE4, { move: 'e5', toFen: afterE5 });
+    graph.addMove(afterE5, { move: 'Nf3', toFen: afterNf3 });
+
+    // Create another path that leads back to the same position (afterE4)
+    // This will create a transposition when we try to traverse back
+    graph.addMove(afterNf3, { move: 'Nc6', toFen: afterE4 }); // Hypothetical move back to e4 position
+
+    printGraph(graph, 10);
+
+    const calls = consoleSpy.mock.calls.map((call: any) => call[0]);
+    // Should show transposition indicator when visiting already shown position
+    expect(calls.some((call: string) => call.includes('↻'))).toBe(true);
   });
 });
