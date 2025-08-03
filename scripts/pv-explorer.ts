@@ -3,6 +3,7 @@
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 import { readFileSync, mkdirSync } from 'fs';
+import { Command } from 'commander';
 import { PrimaryVariationExplorerTask } from '../src/core/tasks/PrimaryVariationExplorerTask';
 import { PVExplorerConfig } from '../src/core/tasks/types/pv-explorer';
 import { EngineService } from '../src/core/engine/EngineService';
@@ -37,27 +38,28 @@ function createProjectDirectory(projectName: string): string {
 }
 
 /**
- * Parse command line arguments
+ * Setup command line interface using commander
  */
-function parseArgs(): { rootFen: string; projectName: string } {
-  const args = process.argv.slice(2);
-
-  if (args.length < 2) {
-    console.error('Usage: tsx scripts/pv-explorer.ts <rootFen> <projectName>');
-    console.error('');
-    console.error('Arguments:');
-    console.error('  rootFen     - The starting FEN position (mandatory)');
-    console.error('  projectName - Name for the project (used for filenames)');
-    console.error('');
-    console.error('Example:');
-    console.error('  tsx scripts/pv-explorer.ts "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1" "starting-position"');
-    process.exit(1);
-  }
-
-  return {
-    rootFen: args[0],
-    projectName: args[1]
-  };
+function setupCLI(): Command {
+  const program = new Command();
+  
+  program
+    .name('pv-explorer')
+    .description('Primary Variation Explorer - Analyze chess positions and explore principal variations')
+    .version('1.0.0')
+    .argument('<rootFen>', 'The starting FEN position')
+    .argument('<projectName>', 'Name for the project (used for filenames)')
+    .option('-d, --depth <number>', 'Analysis depth', '15')
+    .option('-m, --multipv <number>', 'Number of principal variations', '1')
+    .option('-r, --max-depth-ratio <number>', 'Maximum depth ratio for exploration', '0.6')
+    .option('-e, --engine <engineId>', 'Engine ID to use for analysis')
+    .option('--config <path>', 'Path to engine configuration file', '../engine-config.json')
+    .addHelpText('after', `
+Examples:
+  $ tsx scripts/pv-explorer.ts "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1" "starting-position"
+  $ tsx scripts/pv-explorer.ts "r1bqkbnr/pppp1ppp/2n5/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R w KQkq - 2 3" "italian-game" --depth 20 --multipv 3`);
+  
+  return program;
 }
 
 /**
@@ -65,7 +67,12 @@ function parseArgs(): { rootFen: string; projectName: string } {
  */
 async function main() {
   try {
-    const { rootFen, projectName } = parseArgs();
+    const program = setupCLI();
+    program.parse();
+    
+    const rootFen = program.args[0];
+    const projectName = program.args[1];
+    const options = program.opts();
     const slugifiedName = slugify(projectName);
 
     console.log('=== Primary Variation Explorer ===');
@@ -75,7 +82,7 @@ async function main() {
     console.log('');
 
     // Load engine configuration
-    const configPath = join(__dirname, '../engine-config.json');
+    const configPath = join(__dirname, options.config);
     const engineConfig = JSON.parse(readFileSync(configPath, 'utf-8'));
 
     // Initialize engine service
@@ -86,16 +93,16 @@ async function main() {
       engineService.registerEngine(engine);
     }
 
-    // Get an engine instance (use the first available engine)
-    const firstEngineId = engineConfig.engines[0]?.id || 'stockfish-local';
-    const engine = await engineService.getEngine(firstEngineId);
+    // Get an engine instance (use specified engine or first available)
+    const engineId = options.engine || engineConfig.engines[0]?.id || 'stockfish-local';
+    const engine = await engineService.getEngine(engineId);
 
-    console.log(`Using engine: ${firstEngineId}`);
+    console.log(`Using engine: ${engineId}`);
 
     // Configure analysis parameters
     const analysisConfig: AnalysisConfig = {
-      depth: 15,
-      multiPV: 1
+      depth: parseInt(options.depth),
+      multiPV: parseInt(options.multipv)
     };
 
     // Create project directory
@@ -104,7 +111,7 @@ async function main() {
     // Configure PV Explorer
     const pvConfig: PVExplorerConfig = {
       rootPosition: rootFen,
-      maxDepthRatio: 0.6,
+      maxDepthRatio: parseFloat(options.maxDepthRatio),
       databasePath: join(projectPath, 'analysis.db'),
       graphPath: join(projectPath, 'graph.json')
     };
@@ -112,6 +119,7 @@ async function main() {
     console.log('Configuration:');
     console.log(`  Project Directory: ${projectPath}`);
     console.log(`  Analysis Depth: ${analysisConfig.depth}`);
+    console.log(`  Multi-PV: ${analysisConfig.multiPV}`);
     console.log(`  Max Depth Ratio: ${pvConfig.maxDepthRatio}`);
     console.log(`  Database: ${pvConfig.databasePath}`);
     console.log(`  Graph: ${pvConfig.graphPath}`);
