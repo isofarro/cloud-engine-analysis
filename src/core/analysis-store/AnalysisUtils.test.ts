@@ -15,8 +15,12 @@ describe('AnalysisUtils', () => {
           scoreType: 'cp' as ScoreType,
         };
 
-        expect(AnalysisUtils.compareEvaluations(mateEval, cpEval, true)).toBe(1);
-        expect(AnalysisUtils.compareEvaluations(cpEval, mateEval, true)).toBe(-1);
+        expect(AnalysisUtils.compareEvaluations(mateEval, cpEval, true)).toBe(
+          1
+        );
+        expect(AnalysisUtils.compareEvaluations(cpEval, mateEval, true)).toBe(
+          -1
+        );
       });
 
       it('should prefer any centipawn score over negative mate', () => {
@@ -29,8 +33,12 @@ describe('AnalysisUtils', () => {
           scoreType: 'cp' as ScoreType,
         };
 
-        expect(AnalysisUtils.compareEvaluations(negMateEval, cpEval, true)).toBe(-1);
-        expect(AnalysisUtils.compareEvaluations(cpEval, negMateEval, true)).toBe(1);
+        expect(
+          AnalysisUtils.compareEvaluations(negMateEval, cpEval, true)
+        ).toBe(-1);
+        expect(
+          AnalysisUtils.compareEvaluations(cpEval, negMateEval, true)
+        ).toBe(1);
       });
     });
 
@@ -45,8 +53,12 @@ describe('AnalysisUtils', () => {
           scoreType: 'cp' as ScoreType,
         };
 
-        expect(AnalysisUtils.compareEvaluations(mateEval, cpEval, false)).toBe(1);
-        expect(AnalysisUtils.compareEvaluations(cpEval, mateEval, false)).toBe(-1);
+        expect(AnalysisUtils.compareEvaluations(mateEval, cpEval, false)).toBe(
+          1
+        );
+        expect(AnalysisUtils.compareEvaluations(cpEval, mateEval, false)).toBe(
+          -1
+        );
       });
 
       it('should prefer any centipawn score over positive mate', () => {
@@ -59,8 +71,12 @@ describe('AnalysisUtils', () => {
           scoreType: 'cp' as ScoreType,
         };
 
-        expect(AnalysisUtils.compareEvaluations(posMateEval, cpEval, false)).toBe(-1);
-        expect(AnalysisUtils.compareEvaluations(cpEval, posMateEval, false)).toBe(1);
+        expect(
+          AnalysisUtils.compareEvaluations(posMateEval, cpEval, false)
+        ).toBe(-1);
+        expect(
+          AnalysisUtils.compareEvaluations(cpEval, posMateEval, false)
+        ).toBe(1);
       });
     });
 
@@ -106,8 +122,12 @@ describe('AnalysisUtils', () => {
         };
 
         // Positive mate is always better than negative mate for White
-        expect(AnalysisUtils.compareEvaluations(posMate, negMate, true)).toBe(5); // 3 - (-2) = 5
-        expect(AnalysisUtils.compareEvaluations(negMate, posMate, true)).toBe(-5); // -2 - 3 = -5
+        expect(AnalysisUtils.compareEvaluations(posMate, negMate, true)).toBe(
+          5
+        ); // 3 - (-2) = 5
+        expect(AnalysisUtils.compareEvaluations(negMate, posMate, true)).toBe(
+          -5
+        ); // -2 - 3 = -5
       });
 
       it('should handle equal mate scores', () => {
@@ -166,8 +186,12 @@ describe('AnalysisUtils', () => {
         };
 
         // For Black, negative mate is always better than positive mate
-        expect(AnalysisUtils.compareEvaluations(posMate, negMate, false)).toBe(-5); // -2 - 3 = -5
-        expect(AnalysisUtils.compareEvaluations(negMate, posMate, false)).toBe(5); // 3 - (-2) = 5
+        expect(AnalysisUtils.compareEvaluations(posMate, negMate, false)).toBe(
+          -5
+        ); // -2 - 3 = -5
+        expect(AnalysisUtils.compareEvaluations(negMate, posMate, false)).toBe(
+          5
+        ); // 3 - (-2) = 5
       });
     });
 
@@ -196,8 +220,12 @@ describe('AnalysisUtils', () => {
           scoreType: 'cp' as ScoreType,
         };
 
-        expect(AnalysisUtils.compareEvaluations(cpNeg50, cpNeg100, true)).toBe(50); // -50 - (-100) = 50
-        expect(AnalysisUtils.compareEvaluations(cpNeg100, cpNeg50, true)).toBe(-50); // -100 - (-50) = -50
+        expect(AnalysisUtils.compareEvaluations(cpNeg50, cpNeg100, true)).toBe(
+          50
+        ); // -50 - (-100) = 50
+        expect(AnalysisUtils.compareEvaluations(cpNeg100, cpNeg50, true)).toBe(
+          -50
+        ); // -100 - (-50) = -50
       });
 
       it('should handle mixed sign centipawn scores', () => {
@@ -264,8 +292,12 @@ describe('AnalysisUtils', () => {
         };
 
         // For Black, -100 is better than -50
-        expect(AnalysisUtils.compareEvaluations(cpNeg50, cpNeg100, false)).toBe(-50); // -100 - (-50) = -50 (cpNeg100 is better)
-        expect(AnalysisUtils.compareEvaluations(cpNeg100, cpNeg50, false)).toBe(50); // -50 - (-100) = 50 (cpNeg50 is worse)
+        expect(AnalysisUtils.compareEvaluations(cpNeg50, cpNeg100, false)).toBe(
+          -50
+        ); // -100 - (-50) = -50 (cpNeg100 is better)
+        expect(AnalysisUtils.compareEvaluations(cpNeg100, cpNeg50, false)).toBe(
+          50
+        ); // -50 - (-100) = 50 (cpNeg50 is worse)
       });
 
       it('should handle equal centipawn scores', () => {
@@ -320,7 +352,9 @@ describe('AnalysisUtils', () => {
           scoreType: 'cp' as ScoreType,
         };
 
-        expect(AnalysisUtils.compareEvaluations(cpLarge, cpSmall, true)).toBe(9999);
+        expect(AnalysisUtils.compareEvaluations(cpLarge, cpSmall, true)).toBe(
+          9999
+        );
       });
     });
 
@@ -336,7 +370,9 @@ describe('AnalysisUtils', () => {
         };
 
         // For Black, -1 is better than -100 (shorter mate)
-        expect(AnalysisUtils.compareEvaluations(mateNeg1, mateNeg100, false)).toBe(99); // -1 - (-100) = 99
+        expect(
+          AnalysisUtils.compareEvaluations(mateNeg1, mateNeg100, false)
+        ).toBe(99); // -1 - (-100) = 99
       });
 
       it('should prefer negative mate over negative centipawn', () => {
@@ -369,9 +405,9 @@ describe('AnalysisUtils', () => {
         };
 
         // For Black, positive mate is worse than negative centipawn
-        expect(AnalysisUtils.compareEvaluations(mate3, cpNeg500, false)).toBeLessThan(
-          0
-        );
+        expect(
+          AnalysisUtils.compareEvaluations(mate3, cpNeg500, false)
+        ).toBeLessThan(0);
         expect(
           AnalysisUtils.compareEvaluations(cpNeg500, mate3, false)
         ).toBeGreaterThan(0);

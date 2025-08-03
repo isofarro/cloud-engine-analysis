@@ -17,7 +17,6 @@ export class AnalysisUtils {
     eval2: { score: number; scoreType: ScoreType },
     isWhiteToMove: boolean
   ): number {
-
     // Helper function to determine if score1 is better than score2
     const isBetterScore = (
       score1: number,
