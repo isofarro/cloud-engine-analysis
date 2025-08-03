@@ -1,30 +1,31 @@
 #!/usr/bin/env tsx
 
 import { fileURLToPath } from 'url';
+import { Command } from 'commander';
 import { loadGraph, printGraph } from '../src/core/utils/graph';
 
 const __filename = fileURLToPath(import.meta.url);
 
 /**
- * Parse command line arguments
+ * Parse command line arguments using Commander.js
  */
-function parseArgs(): { graphPath: string } {
-  const args = process.argv.slice(2);
+function parseArgs(): { graphPath: string; maxDepth?: number } {
+  const program = new Command();
 
-  if (args.length < 1) {
-    console.error('Usage: tsx scripts/print-graph.ts <graphPath>');
-    console.error('');
-    console.error('Arguments:');
-    console.error('  graphPath - Path to the graph.json file to print');
-    console.error('');
-    console.error('Example:');
-    console.error('  tsx scripts/print-graph.ts tmp/pv-projects/2025-08-03-test-project/graph.json');
-    console.error('  tsx scripts/print-graph.ts tmp/graphs/sicilian-defense.json');
-    process.exit(1);
-  }
+  program
+    .name('print-graph')
+    .description('Print a chess graph from a JSON file')
+    .argument('<graphPath>', 'Path to the graph.json file to print')
+    .option('--maxDepth <depth>', 'Maximum depth to print (default: 10)', (value) => parseInt(value, 10))
+    .addHelpText('after', '\nExamples:\n  tsx scripts/print-graph.ts tmp/pv-projects/2025-08-03-test-project/graph.json\n  tsx scripts/print-graph.ts tmp/graphs/sicilian-defense.json --maxDepth 3')
+    .parse();
+
+  const options = program.opts();
+  const args = program.args;
 
   return {
-    graphPath: args[0]
+    graphPath: args[0],
+    maxDepth: options.maxDepth
   };
 }
 
@@ -33,10 +34,13 @@ function parseArgs(): { graphPath: string } {
  */
 async function main() {
   try {
-    const { graphPath } = parseArgs();
+    const { graphPath, maxDepth } = parseArgs();
 
     console.log('=== Chess Graph Printer ===');
     console.log(`Graph File: ${graphPath}`);
+    if (maxDepth !== undefined) {
+      console.log(`Max Depth: ${maxDepth}`);
+    }
     console.log('');
 
     // Load the graph from file
@@ -46,7 +50,7 @@ async function main() {
     console.log('');
 
     // Print the graph in compact mode (default)
-    printGraph(graph);
+    printGraph(graph, maxDepth);
 
   } catch (error) {
     console.error('❌ Error loading or printing graph:', error);

@@ -389,12 +389,10 @@ describe('printGraph', () => {
     graph.addMove(startFen, { move: 'e4', toFen: afterE4 });
     graph.addMove(afterE4, { move: 'e5', toFen: afterE5 });
 
-    printGraph(graph, 0);
+    printGraph(graph, 1);
 
     const calls = consoleSpy.mock.calls.map((call: any) => call[0]);
-    expect(
-      calls.some((call: string) => call.includes('[Max depth reached]'))
-    ).toBe(true);
+    expect(calls.some((call: string) => call.includes('[...]'))).toBe(true);
   });
 
   it('should show transposition indicator', () => {

@@ -181,9 +181,8 @@ export function printGraph(
     if (depth >= maxDepth || visited.has(fen)) {
       if (visited.has(fen)) {
         console.log(`${prefix}└─ [↻ ${fen.split(' ')[0]}]`);
-      } else {
-        console.log(`${prefix}└─ [Max depth reached]`);
       }
+      // Max depth reached is now handled inline with parent move in compact mode
       return;
     }
 
@@ -231,9 +230,22 @@ export function printGraph(
         const targetMoveCount = targetNode?.moves.length || 0;
 
         if (targetMoveCount > 0) {
-          console.log(`${prefix}${connector} ${move.move}`);
-          // Recursively print child moves
-          printNode(targetFen, nextPrefix, depth + 1);
+          // Check if we'll hit max depth or already visited on next recursion
+          const willHitMaxDepth = depth + 1 >= maxDepth;
+          const willHitVisited = visited.has(targetFen);
+
+          if (willHitMaxDepth && !willHitVisited) {
+            // Append [...] to indicate max depth reached
+            console.log(`${prefix}${connector} ${move.move} [...]`);
+          } else if (willHitVisited) {
+            // Show transposition indicator
+            console.log(`${prefix}${connector} ${move.move}`);
+            printNode(targetFen, nextPrefix, depth + 1);
+          } else {
+            console.log(`${prefix}${connector} ${move.move}`);
+            // Recursively print child moves
+            printNode(targetFen, nextPrefix, depth + 1);
+          }
         } else {
           // Leaf node: just the move
           console.log(`${prefix}${connector} ${move.move}`);
