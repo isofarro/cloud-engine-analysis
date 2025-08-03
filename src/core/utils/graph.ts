@@ -224,34 +224,98 @@ export function printGraph(
           );
         }
       } else {
-        // Compact mode: just show the move
-        const targetFen = move.toFen;
+        // Compact mode: build move sequences for single moves
+        const moveSequence = buildMoveSequence(move.toFen, depth + 1, [
+          move.move,
+        ]);
+        const targetFen = moveSequence.finalFen;
         const targetNode = graph.findPosition(targetFen);
         const targetMoveCount = targetNode?.moves.length || 0;
 
-        if (targetMoveCount > 0) {
-          // Check if we'll hit max depth or already visited on next recursion
-          const willHitMaxDepth = depth + 1 >= maxDepth;
-          const willHitVisited = visited.has(targetFen);
+        // Print the move sequence
+        const sequenceStr = moveSequence.moves.join(' ');
 
-          if (willHitMaxDepth && !willHitVisited) {
-            // Append [...] to indicate max depth reached
-            console.log(`${prefix}${connector} ${move.move} [...]`);
-          } else if (willHitVisited) {
-            // Show transposition indicator
-            console.log(`${prefix}${connector} ${move.move}`);
-            printNode(targetFen, nextPrefix, depth + 1);
-          } else {
-            console.log(`${prefix}${connector} ${move.move}`);
-            // Recursively print child moves
-            printNode(targetFen, nextPrefix, depth + 1);
-          }
+        if (moveSequence.hitMaxDepth) {
+          console.log(`${prefix}${connector} ${sequenceStr} [...]`);
+        } else if (moveSequence.hitVisited) {
+          console.log(`${prefix}${connector} ${sequenceStr}`);
+          // Continue from where we hit the visited node
+          printNode(targetFen, nextPrefix, moveSequence.finalDepth);
+        } else if (targetMoveCount > 1) {
+          // Multiple moves at target position - print sequence and continue
+          console.log(`${prefix}${connector} ${sequenceStr}`);
+          printNode(targetFen, nextPrefix, moveSequence.finalDepth);
+        } else if (targetMoveCount === 0) {
+          // Leaf node - just print the sequence
+          console.log(`${prefix}${connector} ${sequenceStr}`);
         } else {
-          // Leaf node: just the move
-          console.log(`${prefix}${connector} ${move.move}`);
+          // Single move at target - this should have been included in sequence
+          console.log(`${prefix}${connector} ${sequenceStr}`);
         }
       }
     });
+  }
+
+  // Helper function to build move sequences for positions with single moves
+  function buildMoveSequence(
+    fen: string,
+    depth: number,
+    moves: string[]
+  ): {
+    moves: string[];
+    finalFen: string;
+    finalDepth: number;
+    hitMaxDepth: boolean;
+    hitVisited: boolean;
+  } {
+    if (depth >= maxDepth) {
+      return {
+        moves,
+        finalFen: fen,
+        finalDepth: depth,
+        hitMaxDepth: true,
+        hitVisited: false,
+      };
+    }
+
+    if (visited.has(fen)) {
+      return {
+        moves,
+        finalFen: fen,
+        finalDepth: depth,
+        hitMaxDepth: false,
+        hitVisited: true,
+      };
+    }
+
+    // Don't add to visited set here - let the main printNode function handle it
+    const node = graph.findPosition(fen);
+
+    if (!node || node.moves.length === 0) {
+      // Leaf node
+      return {
+        moves,
+        finalFen: fen,
+        finalDepth: depth,
+        hitMaxDepth: false,
+        hitVisited: false,
+      };
+    }
+
+    if (node.moves.length === 1) {
+      // Single move - continue the sequence
+      const move = node.moves[0];
+      return buildMoveSequence(move.toFen, depth + 1, [...moves, move.move]);
+    } else {
+      // Multiple moves - end the sequence here
+      return {
+        moves,
+        finalFen: fen,
+        finalDepth: depth,
+        hitMaxDepth: false,
+        hitVisited: false,
+      };
+    }
   }
 
   printNode(graph.rootPosition);
