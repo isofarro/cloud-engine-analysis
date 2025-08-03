@@ -8,6 +8,7 @@ import { PositionAnalysisTask } from './PositionAnalysisTask';
 import { PVExplorerConfig, ExplorationState } from './types/pv-explorer';
 import { FenString } from '../types';
 import { Chess } from 'chess.ts';
+import { convertMoveToSan } from '../utils/move';
 import sqlite3 from 'sqlite3';
 import * as fs from 'fs';
 import * as path from 'path';
@@ -227,21 +228,8 @@ export class PrimaryVariationExplorerTask {
       const move = moves[i];
 
       try {
-        // Handle UCI notation by splitting into from/to squares
-        let moveResult;
-        if (move.length >= 4 && /^[a-h][1-8][a-h][1-8]/.test(move)) {
-          // UCI notation: split into from and to squares
-          const from = move.substring(0, 2);
-          const to = move.substring(2, 4);
-          const promotion =
-            move.length > 4
-              ? (move.substring(4) as 'q' | 'r' | 'b' | 'n')
-              : undefined;
-          moveResult = chess.move({ from, to, promotion });
-        } else {
-          // Assume SAN notation
-          moveResult = chess.move(move);
-        }
+        // Convert UCI moves to SAN format
+        const moveResult = convertMoveToSan(chess, move);
         if (!moveResult) {
           console.log(`  ⚠️  Invalid move '${move}', stopping PV processing`);
           break;
@@ -249,17 +237,18 @@ export class PrimaryVariationExplorerTask {
         const nextPosition = chess.fen();
 
         // Add move to graph as primary (deeper analysis always wins)
+        const sanMove = moveResult.san;
         this.graph.addMove(
           currentPosition,
           {
-            move: move,
+            move: sanMove,
             toFen: nextPosition,
           },
           true
         ); // true = primary, demotes existing primary to alternative
 
         console.log(
-          `  ➕ Added move: ${move} (${currentPosition.substring(0, 20)}... → ${nextPosition.substring(0, 20)}...)`
+          `  ➕ Added move: ${sanMove} (${currentPosition.substring(0, 20)}... → ${nextPosition.substring(0, 20)}...)`
         );
 
         // Calculate depth for next position (each move in PV is one ply deeper)

@@ -1,6 +1,7 @@
 import { AnalysisResult } from '../engine/types';
 import { ChessGraph } from '../graph/ChessGraph';
 import { Chess } from 'chess.ts';
+import { convertMoveToSan } from '../utils/move';
 
 /**
  * In-memory analysis store for demonstration and testing purposes.
@@ -54,18 +55,27 @@ export class AnalysisManager {
         if (move) {
           try {
             const fromFen = chess.fen();
-            chess.move(move);
+
+            // Convert UCI moves to SAN format
+            const moveResult = convertMoveToSan(chess, move);
+
+            if (!moveResult) {
+              // Invalid move, skip it
+              break;
+            }
+
             const toFen = chess.fen();
+            const sanMove = moveResult.san;
 
             graph.addMove(fromFen, {
-              move,
+              move: sanMove,
               toFen,
             });
 
             // Store move analysis
-            const moveKey = `${fromFen}:${move}`;
+            const moveKey = `${fromFen}:${sanMove}`;
             store.moves[moveKey] = {
-              move,
+              move: sanMove,
               fromFen,
               toFen,
               evaluation: {
