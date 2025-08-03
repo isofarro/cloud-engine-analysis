@@ -247,9 +247,7 @@ export class PrimaryVariationExplorerTask {
           true
         ); // true = primary, demotes existing primary to alternative
 
-        console.log(
-          `  ➕ Added move: ${sanMove} (${currentPosition.substring(0, 20)}... → ${nextPosition.substring(0, 20)}...)`
-        );
+        console.log(`  ➕ Added move: ${sanMove} (${nextPosition})`);
 
         // Calculate depth for next position (each move in PV is one ply deeper)
         const nextDepth = currentDepth + 1;
