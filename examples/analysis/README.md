@@ -84,6 +84,25 @@ npx tsx examples/analysis/tactical-analysis.ts
 npx tsx examples/analysis/comprehensive-analysis.ts
 ```
 
+### 6. Primary Variation Explorer (`pv-explorer-demo.ts`)
+**Purpose**: Demonstrates deep exploration of principal variations to build comprehensive position trees.
+
+- **Position**: Starting position and Sicilian Defense
+- **Method**: Iterative PV analysis with depth-limited exploration
+- **Features**: ChessGraph building, database storage, primary/alternative move hierarchy
+- **Use Case**: Building opening books, deep position analysis, creating analysis databases
+
+```bash
+npx tsx examples/analysis/pv-explorer-demo.ts
+```
+
+**Key Features:**
+- Explores entire principal variation sequences, not just top moves
+- Builds hierarchical ChessGraph with primary/alternative move logic
+- Stores analysis results in SQLite database
+- Configurable exploration depth based on initial analysis
+- Automatic graph synchronization after each position analysis
+
 ## Key Concepts Demonstrated
 
 ### Analysis Configuration
