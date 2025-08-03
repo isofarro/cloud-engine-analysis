@@ -1,11 +1,19 @@
 import { AnalysisResult } from '../engine/types';
 
 /**
- * Parses an EPD (Extended Position Description) line and extracts analysis data.
+ * Represents a parsed EPD (Extended Position Description) structure
+ */
+export interface ParsedEPD {
+  fen: string;
+  operations: Record<string, string>;
+}
+
+/**
+ * Parses an EPD (Extended Position Description) line into a structured format.
  * EPD format: <position> <side-to-move> <castling> <en-passant> <operation1>; <operation2>; ...
  * Each operation has format: <opcode> <operand(s)>
  */
-export function parseEPDLine(line: string): AnalysisResult | null {
+export function parseEPD(line: string): ParsedEPD | null {
   const trimmed = line.trim();
   if (!trimmed) return null;
 
@@ -53,9 +61,18 @@ export function parseEPDLine(line: string): AnalysisResult | null {
     operations[opcode] = operand;
   }
 
+  return { fen, operations };
+}
+
+/**
+ * Transforms a parsed EPD structure into an AnalysisResult.
+ */
+export function formatEPDAsAnalysisResult(parsedEPD: ParsedEPD): AnalysisResult | null {
+  const { fen, operations } = parsedEPD;
+
   // Extract required analysis data from operations
   if (!operations.ce || !operations.acd) {
-    console.warn(`Missing required operations (ce, acd) in EPD line: ${line}`);
+    console.warn(`Missing required operations (ce, acd) in parsed EPD`);
     return null;
   }
 
@@ -66,7 +83,7 @@ export function parseEPDLine(line: string): AnalysisResult | null {
   const pv = operations.pv || '';
 
   if (isNaN(centipawns) || isNaN(depth)) {
-    console.warn(`Invalid numeric values in EPD line: ${line}`);
+    console.warn(`Invalid numeric values in parsed EPD`);
     return null;
   }
 
@@ -84,4 +101,15 @@ export function parseEPDLine(line: string): AnalysisResult | null {
     nodes,
     nps: time > 0 ? Math.round(nodes / (time / 1000)) : 0,
   };
+}
+
+/**
+ * Parses an EPD (Extended Position Description) line and extracts analysis data.
+ * This is a convenience function that combines parseEPD and formatEPDAsAnalysisResult.
+ */
+export function parseEPDLine(line: string): AnalysisResult | null {
+  const parsedEPD = parseEPD(line);
+  if (!parsedEPD) return null;
+
+  return formatEPDAsAnalysisResult(parsedEPD);
 }
