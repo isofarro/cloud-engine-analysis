@@ -89,7 +89,7 @@ export class PrimaryVariationExplorerTask {
       `Starting Primary Variation exploration from: ${this.config.rootPosition}`
     );
     console.log(
-      `Analysis config: depth=${this.analysisConfig.depth}, multiPV=${this.analysisConfig.multiPV}`
+      `Analysis config: depth=${this.analysisConfig.depth}, time=${this.analysisConfig.time}, multiPV=${this.analysisConfig.multiPV}`
     );
     console.log(`Max depth ratio: ${this.config.maxDepthRatio}`);
 

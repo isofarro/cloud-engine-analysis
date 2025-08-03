@@ -42,23 +42,27 @@ function createProjectDirectory(projectName: string): string {
  */
 function setupCLI(): Command {
   const program = new Command();
-  
+
   program
     .name('pv-explorer')
     .description('Primary Variation Explorer - Analyze chess positions and explore principal variations')
     .version('1.0.0')
     .argument('<rootFen>', 'The starting FEN position')
     .argument('<projectName>', 'Name for the project (used for filenames)')
-    .option('-d, --depth <number>', 'Analysis depth', '15')
+    .option('-d, --depth <number>', 'Analysis depth')
     .option('-m, --multipv <number>', 'Number of principal variations', '1')
     .option('-r, --max-depth-ratio <number>', 'Maximum depth ratio for exploration', '0.6')
+    .option('-t, --secs-per-move <number>', 'Seconds to analyze each move')
     .option('-e, --engine <engineId>', 'Engine ID to use for analysis')
     .option('--config <path>', 'Path to engine configuration file', '../engine-config.json')
     .addHelpText('after', `
 Examples:
-  $ tsx scripts/pv-explorer.ts "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1" "starting-position"
-  $ tsx scripts/pv-explorer.ts "r1bqkbnr/pppp1ppp/2n5/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R w KQkq - 2 3" "italian-game" --depth 20 --multipv 3`);
-  
+  $ tsx scripts/pv-explorer.ts "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1" "depth-analysis" --depth 15
+  $ tsx scripts/pv-explorer.ts "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1" "time-analysis" --secs-per-move 10
+  $ tsx scripts/pv-explorer.ts "r1bqkbnr/pppp1ppp/2n5/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R w KQkq - 2 3" "combined" --depth 20 --secs-per-move 5 --multipv 3
+
+Note: Either --depth or --secs-per-move (or both) must be specified.`);
+
   return program;
 }
 
@@ -69,7 +73,7 @@ async function main() {
   try {
     const program = setupCLI();
     program.parse();
-    
+
     const rootFen = program.args[0];
     const projectName = program.args[1];
     const options = program.opts();
@@ -101,9 +105,23 @@ async function main() {
 
     // Configure analysis parameters
     const analysisConfig: AnalysisConfig = {
-      depth: parseInt(options.depth),
       multiPV: parseInt(options.multipv)
     };
+
+    // Add depth constraint if specified
+    if (options.depth) {
+      analysisConfig.depth = parseInt(options.depth);
+    }
+
+    // Add time constraint if specified
+    if (options.secsPerMove) {
+      analysisConfig.time = parseInt(options.secsPerMove);
+    }
+
+    // Validate that at least one analysis constraint is specified
+    if (!analysisConfig.depth && !analysisConfig.time) {
+      throw new Error('Analysis configuration must include either depth or secsPerMove constraint');
+    }
 
     // Create project directory
     const projectPath = createProjectDirectory(projectName);
