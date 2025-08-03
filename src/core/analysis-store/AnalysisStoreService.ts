@@ -1,5 +1,4 @@
 import { IAnalysisRepo } from './IAnalysisRepo';
-import { AnalysisUtils } from './AnalysisUtils';
 import { AnalysisResult } from '../engine/types';
 import {
   Engine,
@@ -26,19 +25,86 @@ export class AnalysisStoreService {
    * Store an analysis result with automatic engine and position management.
    */
   async storeAnalysisResult(
-    result: AnalysisResult,
+    analysisResult: AnalysisResult,
     engineSlug: string
   ): Promise<void> {
-    return AnalysisUtils.storeAnalysisResult(this.repo, result, engineSlug);
+    // Ensure position exists
+    const position = await this.repo.upsertPosition({
+      fen: analysisResult.fen,
+    });
+
+    // Ensure engine exists (extract name/version from slug)
+    const [name, version] = this.parseEngineSlug(engineSlug);
+    const engine = await this.repo.upsertEngine({
+      slug: engineSlug,
+      name,
+      version,
+    });
+
+    // Convert and store analysis
+    const analysisData: CreateAnalysisData = {
+      position_id: position.id,
+      engine_id: engine.id,
+      depth: analysisResult.depth,
+      time: analysisResult.time || 0,
+      nodes: analysisResult.nodes || 0,
+      nps: analysisResult.nps || 0,
+      score_type: analysisResult.score.type as ScoreType,
+      score: analysisResult.score.score,
+      pv: analysisResult.pvs[0] || '', // Use first PV line
+    };
+
+    await this.repo.upsertAnalysis(analysisData);
   }
 
   /**
    * Store multiple analysis results efficiently.
+   * Uses transactions and batch operations for optimal performance.
    */
   async storeMultipleAnalysisResults(
     results: Array<{ analysisResult: AnalysisResult; engineSlug: string }>
   ): Promise<void> {
-    return AnalysisUtils.batchStoreAnalysisResults(this.repo, results);
+    // Group by unique positions and engines to minimize upserts
+    const uniquePositions = new Set<FenString>();
+    const uniqueEngines = new Set<string>();
+
+    results.forEach(({ analysisResult, engineSlug }) => {
+      uniquePositions.add(analysisResult.fen);
+      uniqueEngines.add(engineSlug);
+    });
+
+    // Batch upsert positions
+    const positionMap = new Map<FenString, number>();
+    for (const fen of uniquePositions) {
+      const position = await this.repo.upsertPosition({ fen });
+      positionMap.set(fen, position.id);
+    }
+
+    // Batch upsert engines
+    const engineMap = new Map<string, number>();
+    for (const slug of uniqueEngines) {
+      const [name, version] = this.parseEngineSlug(slug);
+      const engine = await this.repo.upsertEngine({ slug, name, version });
+      engineMap.set(slug, engine.id);
+    }
+
+    // Prepare analysis data
+    const analysisData: CreateAnalysisData[] = results.map(
+      ({ analysisResult, engineSlug }) => ({
+        position_id: positionMap.get(analysisResult.fen)!,
+        engine_id: engineMap.get(engineSlug)!,
+        depth: analysisResult.depth,
+        time: analysisResult.time || 0,
+        nodes: analysisResult.nodes || 0,
+        nps: analysisResult.nps || 0,
+        score_type: analysisResult.score.type as ScoreType,
+        score: analysisResult.score.score,
+        pv: analysisResult.pvs[0] || '',
+      })
+    );
+
+    // Batch insert analysis
+    await this.repo.batchUpsertAnalysis(analysisData);
   }
 
   /**
@@ -78,7 +144,30 @@ export class AnalysisStoreService {
     pv: string[];
     engineInfo: string;
   } | null> {
-    return AnalysisUtils.getBestAnalysisForPosition(this.repo, fen);
+    const analysis = await this.repo.getBestAnalysisForPosition(fen);
+    if (!analysis) return null;
+
+    return {
+      evaluation: analysis.score,
+      scoreType: analysis.score_type,
+      depth: analysis.depth,
+      bestMove: analysis.pv.split(' ')[0] || '',
+      pv: analysis.pv.split(' ').filter(move => move.length > 0),
+      engineInfo: `${analysis.engine_name} ${analysis.engine_version}`,
+    };
+  }
+
+  /**
+   * Parse engine slug into name and version components.
+   */
+  private parseEngineSlug(slug: string): [string, string] {
+    const parts = slug.split('-');
+    if (parts.length >= 2) {
+      const version = parts[parts.length - 1];
+      const name = parts.slice(0, -1).join('-');
+      return [name, version];
+    }
+    return [slug, '1.0.0'];
   }
 
   /**
