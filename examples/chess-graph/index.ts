@@ -30,6 +30,11 @@ const examples = [
     file: 'graph-management.ts',
     description: 'Managing multiple graph files (list, delete, etc.)',
   },
+  {
+    name: 'Print Graph Demo',
+    file: 'print-graph-demo.ts',
+    description: 'Shows ASCII tree visualization of chess graphs in terminal',
+  },
 ];
 
 function runExample(exampleFile: string): void {

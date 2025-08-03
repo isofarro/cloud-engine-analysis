@@ -7,6 +7,7 @@ This directory contains examples demonstrating how to save and load ChessGraph o
 - **basic-save-load.ts** - Simple example showing basic save and load operations
 - **opening-tree.ts** - Creating and persisting an opening tree with multiple variations
 - **graph-management.ts** - Managing multiple graph files (list, delete, etc.)
+- **print-graph-demo.ts** - ASCII tree visualization of chess graphs in the terminal
 
 ## Running Examples
 
