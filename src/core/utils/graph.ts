@@ -3,6 +3,7 @@ import * as path from 'path';
 import { ChessGraph } from '../graph/ChessGraph';
 import { FenString } from '../types';
 import { PositionNodeMap } from '../graph/types';
+import { printBoard } from '../../utils/chess';
 
 /**
  * Serializable representation of a ChessGraph
@@ -162,14 +163,9 @@ export function printGraph(
     return;
   }
 
-  if (verbose) {
-    console.log('📊 Chess Graph Structure (Verbose):');
-    console.log(`Root: ${graph.rootPosition}`);
-  } else {
-    console.log('📊 Chess Graph Structure:');
-    console.log(`Root: ${graph.rootPosition.split(' ')[0]}`);
-  }
-  console.log('');
+  console.log('📊 Chess Graph Structure:');
+  console.log('Root Position:');
+  printBoard(graph.rootPosition);
 
   const visited = new Set<string>();
 
