@@ -49,40 +49,6 @@ yarn format
 
 The server runs on `http://localhost:3001` by default.
 
-### Available Endpoints
-
-- `GET /` - Welcome message with available endpoints
-- `GET /hello` - Hello World endpoint
-- `GET /health` - Health check endpoint
-
-### Example Responses
-
-**GET /hello**
-```json
-{
-  "message": "Hello, World!"
-}
-```
-
-**GET /health**
-```json
-{
-  "status": "OK",
-  "timestamp": "2024-01-01T00:00:00.000Z"
-}
-```
-
-**GET /**
-```json
-{
-  "message": "Welcome to Cloud Engine Analysis API",
-  "endpoints": {
-    "hello": "/hello",
-    "health": "/health"
-  }
-}
-```
-
 ## Project Structure
 
 ```
