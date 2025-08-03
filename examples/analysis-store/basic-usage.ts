@@ -146,15 +146,50 @@ async function basicUsageExample() {
     // Example 7: Compare evaluations
     console.log('7. Comparing evaluations...');
 
-    const eval1 = { score: 25, scoreType: 'cp' as const };
-    const eval2 = { score: 3, scoreType: 'mate' as const };
+    // Example for White to move
+    const eval1White = {
+      score: 25,
+      scoreType: 'cp' as const,
+      isWhiteToMove: true,
+    };
+    const eval2White = {
+      score: 3,
+      scoreType: 'mate' as const,
+      isWhiteToMove: true,
+    };
 
-    const comparison = AnalysisUtils.compareEvaluations(eval1, eval2);
-    console.log(
-      `Comparing ${AnalysisUtils.formatEvaluation(eval1.score, eval1.scoreType)} vs ${AnalysisUtils.formatEvaluation(eval2.score, eval2.scoreType)}:`
+    const comparisonWhite = AnalysisUtils.compareEvaluations(
+      eval1White,
+      eval2White
     );
     console.log(
-      `Result: ${comparison > 0 ? 'First is better' : comparison < 0 ? 'Second is better' : 'Equal'}\n`
+      `White to move - Comparing ${AnalysisUtils.formatEvaluation(eval1White.score, eval1White.scoreType)} vs ${AnalysisUtils.formatEvaluation(eval2White.score, eval2White.scoreType)}:`
+    );
+    console.log(
+      `Result: ${comparisonWhite > 0 ? 'First is better' : comparisonWhite < 0 ? 'Second is better' : 'Equal'}`
+    );
+
+    // Example for Black to move
+    const eval1Black = {
+      score: 25,
+      scoreType: 'cp' as const,
+      isWhiteToMove: false,
+    };
+    const eval2Black = {
+      score: -3,
+      scoreType: 'mate' as const,
+      isWhiteToMove: false,
+    };
+
+    const comparisonBlack = AnalysisUtils.compareEvaluations(
+      eval1Black,
+      eval2Black
+    );
+    console.log(
+      `Black to move - Comparing ${AnalysisUtils.formatEvaluation(eval1Black.score, eval1Black.scoreType)} vs ${AnalysisUtils.formatEvaluation(eval2Black.score, eval2Black.scoreType)}:`
+    );
+    console.log(
+      `Result: ${comparisonBlack > 0 ? 'First is better' : comparisonBlack < 0 ? 'Second is better' : 'Equal'}\n`
     );
 
     console.log('=== Example completed successfully! ===');

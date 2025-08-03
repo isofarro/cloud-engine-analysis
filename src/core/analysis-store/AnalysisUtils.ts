@@ -121,33 +121,81 @@ export class AnalysisUtils {
 
   /**
    * Compares two positions to find the better evaluation.
-   * Handles both centipawn and mate scores.
+   * Handles both centipawn and mate scores, considering whose turn it is to move.
+   * For White to move: higher scores are better
+   * For Black to move: lower scores are better (scores are from perspective of side to move)
    */
   static compareEvaluations(
-    eval1: { score: number; scoreType: ScoreType },
-    eval2: { score: number; scoreType: ScoreType }
+    eval1: { score: number; scoreType: ScoreType; isWhiteToMove: boolean },
+    eval2: { score: number; scoreType: ScoreType; isWhiteToMove: boolean }
   ): number {
-    // Mate scores always beat centipawn scores
-    if (eval1.scoreType === 'mate' && eval2.scoreType === 'cp') {
-      return eval1.score > 0 ? 1 : -1;
-    }
-    if (eval2.scoreType === 'mate' && eval1.scoreType === 'cp') {
-      return eval2.score > 0 ? -1 : 1;
+    // Both evaluations must be from the same perspective
+    if (eval1.isWhiteToMove !== eval2.isWhiteToMove) {
+      throw new Error('Cannot compare evaluations from different perspectives');
     }
 
-    // Both mate scores: shorter mate is better
-    if (eval1.scoreType === 'mate' && eval2.scoreType === 'mate') {
-      if (eval1.score > 0 && eval2.score > 0) {
-        return eval2.score - eval1.score; // Lower positive mate is better
-      }
-      if (eval1.score < 0 && eval2.score < 0) {
-        return eval1.score - eval2.score; // Higher negative mate is better
-      }
-      return eval1.score - eval2.score; // Mixed signs
-    }
+    const isWhiteToMove = eval1.isWhiteToMove;
 
-    // Both centipawn scores: higher is better
-    return eval1.score - eval2.score;
+    // Helper function to determine if score1 is better than score2
+    const isBetterScore = (
+      score1: number,
+      score2: number,
+      scoreType1: ScoreType,
+      scoreType2: ScoreType
+    ): number => {
+      // Mate scores always beat centipawn scores
+      if (scoreType1 === 'mate' && scoreType2 === 'cp') {
+        if (isWhiteToMove) {
+          return score1 > 0 ? 1 : -1; // White: positive mate is better
+        } else {
+          return score1 < 0 ? 1 : -1; // Black: negative mate is better
+        }
+      }
+      if (scoreType2 === 'mate' && scoreType1 === 'cp') {
+        if (isWhiteToMove) {
+          return score2 > 0 ? -1 : 1; // White: positive mate is better
+        } else {
+          return score2 < 0 ? -1 : 1; // Black: negative mate is better
+        }
+      }
+
+      // Both mate scores: shorter mate is better
+      if (scoreType1 === 'mate' && scoreType2 === 'mate') {
+        if (isWhiteToMove) {
+          // For White: positive mates are good, negative mates are bad
+          if (score1 > 0 && score2 > 0) {
+            return score2 - score1; // Lower positive mate is better
+          }
+          if (score1 < 0 && score2 < 0) {
+            return score1 - score2; // Higher negative mate is better (less bad)
+          }
+          return score1 - score2; // Mixed signs: positive beats negative
+        } else {
+          // For Black: negative mates are good, positive mates are bad
+          if (score1 < 0 && score2 < 0) {
+            return score1 - score2; // Lower negative mate is better
+          }
+          if (score1 > 0 && score2 > 0) {
+            return score2 - score1; // Higher positive mate is better (less bad)
+          }
+          return score2 - score1; // Mixed signs: negative beats positive
+        }
+      }
+
+      // Both centipawn scores
+      if (isWhiteToMove) {
+        return score1 - score2; // Higher is better for White
+      } else {
+        return score2 - score1; // Lower is better for Black
+      }
+    };
+
+    return isBetterScore(
+      eval1.score,
+      eval2.score,
+      eval1.scoreType,
+      eval2.scoreType
+    );
   }
 
   /**
