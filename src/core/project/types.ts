@@ -3,6 +3,9 @@ import { ChessGraph } from '../graph/ChessGraph';
 import { IAnalysisRepo } from '../analysis-store/IAnalysisRepo';
 import { AnalysisResult } from '../engine/types';
 
+// Re-export AnalysisResult so other files can import it from this module
+export { AnalysisResult };
+
 /**
  * Represents a chess project with its associated graph and analysis data
  */
