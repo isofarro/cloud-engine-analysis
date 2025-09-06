@@ -10,6 +10,9 @@ export interface PVExplorerConfig {
   /** Ratio of initial analysis depth to use for exploration depth (e.g., 0.5 = half) */
   maxDepthRatio: number;
 
+  /** Maximum number of positions to explore */
+  maxPositions?: number;
+
   /** Path to the SQLite database file for storing analysis results */
   databasePath: string;
 
