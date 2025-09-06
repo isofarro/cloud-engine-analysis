@@ -1,7 +1,7 @@
 import { ChessEngine, AnalysisConfig } from '../engine/ChessEngine';
 import { AnalysisResult } from '../engine/types';
 import { ChessGraph } from '../graph/ChessGraph';
-import { saveGraph } from '../utils/graph';
+import { saveGraph, loadGraph } from '../utils/graph';
 import { AnalysisStoreService } from '../analysis-store/AnalysisStoreService';
 import { AnalysisRepo } from '../analysis-store/AnalysisRepo';
 import { PositionAnalysisTask } from './PositionAnalysisTask';
@@ -53,7 +53,7 @@ export class PrimaryVariationExplorerTask {
     }
 
     // Initialize graph
-    this.graph = new ChessGraph(config.rootPosition);
+    this.graph = this.initializeGraph();
 
     // Initialize exploration state
     this.state = {
@@ -62,6 +62,40 @@ export class PrimaryVariationExplorerTask {
       maxExplorationDepth: 0,
       positionDepths: new Map([[config.rootPosition, 0]]),
     };
+  }
+
+  /**
+   * Initialize the ChessGraph - either load from existing file or create new
+   */
+  /**
+   * Initialize the ChessGraph - either load from existing file or create new
+   */
+  private initializeGraph(): ChessGraph {
+    if (this.config.graphPath && fs.existsSync(this.config.graphPath)) {
+      try {
+        console.log(`Loading existing graph from: ${this.config.graphPath}`);
+        const loadedGraph = loadGraph(this.config.graphPath);
+  
+        // Verify the loaded graph has the expected root position
+        if (loadedGraph.rootPosition !== this.config.rootPosition) {
+          console.warn(
+            `Warning: Loaded graph root position (${loadedGraph.rootPosition}) ` +
+              `differs from config root position (${this.config.rootPosition}). ` +
+              `Using loaded graph's root position.`
+          );
+        }
+        return loadedGraph;
+      } catch (error) {
+        console.warn(
+          `Failed to load graph from ${this.config.graphPath}: ${error}. ` +
+            `Creating new graph instead.`
+        );
+        return new ChessGraph(this.config.rootPosition);
+      }
+    } else {
+      console.log('Creating new ChessGraph');
+      return new ChessGraph(this.config.rootPosition);
+    }
   }
 
   /**
