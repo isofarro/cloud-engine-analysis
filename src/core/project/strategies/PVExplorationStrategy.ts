@@ -15,6 +15,7 @@ import {
 } from './types';
 import { PositionAnalysisTask } from '../../tasks/PositionAnalysisTask';
 import { ChessEngine } from '../../engine/ChessEngine';
+import { AnalysisUtils } from '../../analysis-store/AnalysisUtils';
 
 /**
  * Primary Variation Exploration Strategy
@@ -23,6 +24,12 @@ import { ChessEngine } from '../../engine/ChessEngine';
  * of chess positions by analyzing principal variations in depth.
  * Extracted from PrimaryVariationExplorerTask for better modularity.
  */
+// Add these imports
+import { StatePersistenceService } from '../persistence/StatePersistenceService';
+import { SerializableState } from '../persistence/types';
+import { v4 as uuidv4 } from 'uuid';
+
+// Add to the PVExplorationStrategy class:
 export class PVExplorationStrategy implements AnalysisStrategy {
   readonly name = 'pv-exploration';
   readonly description =
@@ -32,11 +39,14 @@ export class PVExplorationStrategy implements AnalysisStrategy {
   private analysisConfig: AnalysisConfig;
   private config: PVExplorationConfig;
   private positionAnalysisTask: PositionAnalysisTask;
+  private persistenceService?: StatePersistenceService;
+  private currentSessionId?: string;
 
   constructor(
     engine: ChessEngine,
     analysisConfig: AnalysisConfig,
-    config: PVExplorationConfig
+    config: PVExplorationConfig,
+    persistenceService?: StatePersistenceService
   ) {
     this.engine = engine;
     this.analysisConfig = analysisConfig;
@@ -45,67 +55,123 @@ export class PVExplorationStrategy implements AnalysisStrategy {
       engine,
       analysisConfig
     );
+    this.persistenceService = persistenceService;
   }
 
   /**
-   * Execute the PV exploration strategy
+   * Execute analysis with state persistence support
    */
   async execute(context: AnalysisContext): Promise<AnalysisResult[]> {
-    const strategyContext = context as StrategyContext;
-    const results: AnalysisResult[] = [];
+    // Generate session ID for this analysis run
+    this.currentSessionId = uuidv4();
 
-    // Initialize exploration state
-    const state: PVExplorationState = {
-      positionsToAnalyze: [context.position],
-      analyzedPositions: new Set(),
-      currentDepth: 0,
-      maxDepth: 0,
-      positionDepths: new Map([[context.position, 0]]),
-      stats: {
-        totalAnalyzed: 0,
-        totalDiscovered: 1,
-        startTime: new Date(),
-        lastUpdate: new Date(),
-        avgTimePerPosition: 0,
-      },
-    };
+    // Check for existing state to resume
+    const resumeState = await this.checkForResumableState(context);
 
-    // Store state in context for progress tracking
-    if (strategyContext.state) {
-      strategyContext.state.pvExploration = state;
+    let state: PVExplorationState;
+    if (resumeState) {
+      console.log(`🔄 Resuming analysis from saved state...`);
+      state = this.persistenceService!.deserializeState(resumeState.state); // Remove the extra .state
+    } else {
+      // Initialize new state
+      state = {
+        positionsToAnalyze: [],
+        analyzedPositions: new Set<FenString>(),
+        currentDepth: 0,
+        maxDepth: this.config.maxDepthRatio * (this.analysisConfig.depth || 15), // Handle undefined depth
+        positionDepths: new Map<FenString, number>(),
+        stats: {
+          totalAnalyzed: 0,
+          totalDiscovered: 1,
+          startTime: new Date(),
+          lastUpdate: new Date(),
+          avgTimePerPosition: 0,
+        },
+      };
+    }
+
+    // Start auto-save if persistence is enabled
+    if (this.persistenceService && this.currentSessionId) {
+      this.persistenceService.startAutoSave(this.currentSessionId, () => ({
+        strategyName: this.name,
+        projectName: context.project.name,
+        rootPosition: context.position,
+        state,
+        config: this.config,
+        metadata: {
+          // Remove engineSlug since it's not available in AnalysisContext
+          // engineSlug: context.engineSlug
+        },
+      }));
     }
 
     try {
-      // Step 1: Analyze root position to determine exploration depth
-      const rootResult = await this.analyzeRootPosition(context, state);
-      results.push(rootResult);
+      const strategyContext = context as StrategyContext;
+      const results: AnalysisResult[] = [];
 
-      // Step 2: Process the exploration queue
-      const explorationResults = await this.processExplorationQueue(
-        context,
-        state,
-        strategyContext.onProgress
-      );
-      results.push(...explorationResults);
+      // Initialize exploration state
+      const state: PVExplorationState = {
+        positionsToAnalyze: [context.position],
+        analyzedPositions: new Set(),
+        currentDepth: 0,
+        maxDepth: 0,
+        positionDepths: new Map([[context.position, 0]]),
+        stats: {
+          totalAnalyzed: 0,
+          totalDiscovered: 1,
+          startTime: new Date(),
+          lastUpdate: new Date(),
+          avgTimePerPosition: 0,
+        },
+      };
 
-      return results;
-    } catch (error) {
-      console.error('❌ Error during PV exploration:', error);
-      throw error;
+      // Store state in context for progress tracking
+      if (strategyContext.state) {
+        strategyContext.state.pvExploration = state;
+      }
+
+      try {
+        // Step 1: Analyze root position to determine exploration depth
+        const rootResult = await this.analyzeRootPosition(context, state);
+        results.push(rootResult);
+
+        // Step 2: Process the exploration queue
+        const explorationResults = await this.processExplorationQueue(
+          context,
+          state,
+          strategyContext.onProgress
+        );
+        results.push(...explorationResults);
+
+        return results;
+      } catch (error) {
+        console.error('❌ Error during PV exploration:', error);
+        throw error;
+      }
+    } finally {
+      // Stop auto-save when execution completes
+      if (this.persistenceService) {
+        this.persistenceService.stopAutoSave();
+      }
     }
-  }
+  } // Close the execute method here
 
   /**
    * Check if strategy can be applied to the given context
    */
   canExecute(context: AnalysisContext): boolean {
-    // PV exploration can be applied to any valid chess position
-    try {
-      const chess = new Chess(context.position);
-      return chess.gameOver() === false; // Only explore non-terminal positions
-    } catch {
-      return false; // Invalid FEN
+    // Check if we have a valid position
+    if (!context.position || context.position.trim() === '') {
+      return false;
     }
+
+    // Check if we have required dependencies
+    if (!context.graph || !context.analysisRepo) {
+      return false;
+    }
+
+    // Check if the position is valid FEN using the proper utility
+    return AnalysisUtils.isValidFen(context.position);
   }
 
   /**
@@ -401,6 +467,36 @@ export class PVExplorationStrategy implements AnalysisStrategy {
       return [name, version];
     }
     return [slug, '1.0'];
+  }
+
+  /**
+   * Check for resumable state
+   */
+  private async checkForResumableState(
+    context: AnalysisContext
+  ): Promise<SerializableState | null> {
+    if (!this.persistenceService) return null;
+
+    const savedStates = await this.persistenceService.listSavedStates();
+
+    // Look for incomplete analysis of the same position
+    const resumableState = savedStates.find(
+      s =>
+        s.projectName === context.project.name &&
+        s.strategyName === this.name &&
+        s.completionPercentage < 100
+    );
+
+    if (resumableState) {
+      const result = await this.persistenceService.loadState(
+        resumableState.sessionId
+      );
+      if (result.success && result.state) {
+        return result.state;
+      }
+    }
+
+    return null;
   }
 
   /**
