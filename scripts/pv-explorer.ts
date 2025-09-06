@@ -23,13 +23,10 @@ function slugify(text: string): string {
 }
 
 /**
- * Create a timestamped project directory
+ * Create a project directory
  */
-function createProjectDirectory(projectName: string): string {
-  const timestamp = new Date().toISOString().split('T')[0]; // YYYY-MM-DD format
-  const slugifiedName = slugify(projectName);
-  const projectDirName = `${timestamp}-${slugifiedName}`;
-  const projectPath = join(__dirname, '../tmp/pv-projects', projectDirName);
+function initProjectDirectory(projectName: string): string {
+  const projectPath = join(__dirname, '../tmp/pv-projects', projectName);
 
   // Create the directory if it doesn't exist
   mkdirSync(projectPath, { recursive: true });
@@ -123,8 +120,8 @@ async function main() {
       throw new Error('Analysis configuration must include either depth or secsPerMove constraint');
     }
 
-    // Create project directory
-    const projectPath = createProjectDirectory(projectName);
+    // Initialise project directory
+    const projectPath = initProjectDirectory(projectName);
 
     // Configure PV Explorer
     const pvConfig: PVExplorerConfig = {
