@@ -9,28 +9,28 @@ import { AnalysisResult } from '../engine/types';
 export interface ChessProject {
   /** Unique project identifier */
   id: string;
-  
+
   /** Human-readable project name */
   name: string;
-  
+
   /** Absolute path to project directory */
   projectPath: string;
-  
+
   /** Root position for the project (starting FEN) */
   rootPosition: FenString;
-  
+
   /** Path to the chess graph file (graph.json) */
   graphPath: string;
-  
+
   /** Path to the analysis database (analysis.db) */
   databasePath: string;
-  
+
   /** Project creation timestamp */
   createdAt: Date;
-  
+
   /** Last modification timestamp */
   updatedAt: Date;
-  
+
   /** Project configuration metadata */
   config: ProjectConfig;
 }
@@ -41,13 +41,13 @@ export interface ChessProject {
 export interface ProjectConfig {
   /** Default engine configuration to use */
   defaultEngine?: string;
-  
+
   /** Analysis depth settings */
   analysisDepth?: number;
-  
+
   /** Multi-PV settings */
   multiPv?: number;
-  
+
   /** Custom project settings */
   [key: string]: any;
 }
@@ -58,24 +58,24 @@ export interface ProjectConfig {
 export interface AnalysisStrategy {
   /** Strategy identifier */
   readonly name: string;
-  
+
   /** Strategy description */
   readonly description: string;
-  
+
   /**
    * Execute the analysis strategy
    * @param context Analysis execution context
    * @returns Promise resolving to analysis results
    */
   execute(context: AnalysisContext): Promise<AnalysisResult[]>;
-  
+
   /**
    * Validate if the strategy can be applied to the given context
    * @param context Analysis execution context
    * @returns True if strategy is applicable
    */
   canExecute(context: AnalysisContext): boolean;
-  
+
   /**
    * Get estimated execution time/complexity
    * @param context Analysis execution context
@@ -90,19 +90,19 @@ export interface AnalysisStrategy {
 export interface AnalysisContext {
   /** Target position to analyze */
   position: FenString;
-  
+
   /** Chess graph for position relationships */
   graph: ChessGraph;
-  
+
   /** Analysis repository for storing/retrieving results */
   analysisRepo: IAnalysisRepo;
-  
+
   /** Analysis configuration */
   config: AnalysisConfig;
-  
+
   /** Project context */
   project: ChessProject;
-  
+
   /** Additional context data */
   metadata?: Record<string, any>;
 }
@@ -113,13 +113,13 @@ export interface AnalysisContext {
 export interface AnalysisConfig {
   /** Analysis depth */
   depth?: number;
-  
+
   /** Time limit in milliseconds */
   timeLimit?: number;
-  
+
   /** Number of principal variations */
   multiPv?: number;
-  
+
   /** Engine-specific options */
   engineOptions?: Record<string, any>;
 }
@@ -130,13 +130,13 @@ export interface AnalysisConfig {
 export interface ExecutionEstimate {
   /** Estimated time in milliseconds */
   estimatedTimeMs: number;
-  
+
   /** Estimated number of positions to analyze */
   estimatedPositions: number;
-  
+
   /** Complexity level (low, medium, high) */
   complexity: 'low' | 'medium' | 'high';
-  
+
   /** Whether analysis can be resumed if interrupted */
   resumable: boolean;
 }
@@ -147,13 +147,13 @@ export interface ExecutionEstimate {
 export interface AnalysisDependencies {
   /** Chess graph instance */
   graph: ChessGraph;
-  
+
   /** Analysis repository instance */
   analysisRepo: IAnalysisRepo;
-  
+
   /** Analysis strategy registry */
   strategyRegistry: AnalysisStrategyRegistry;
-  
+
   /** Project manager instance */
   projectManager: ProjectManager;
 }
@@ -167,20 +167,20 @@ export interface AnalysisStrategyRegistry {
    * @param strategy Strategy to register
    */
   register(strategy: AnalysisStrategy): void;
-  
+
   /**
    * Get strategy by name
    * @param name Strategy name
    * @returns Strategy instance or undefined
    */
   get(name: string): AnalysisStrategy | undefined;
-  
+
   /**
    * List all registered strategies
    * @returns Array of strategy names
    */
   list(): string[];
-  
+
   /**
    * Find strategies applicable to context
    * @param context Analysis context
@@ -199,33 +199,33 @@ export interface ProjectManager {
    * @returns Created project
    */
   create(config: CreateProjectConfig): Promise<ChessProject>;
-  
+
   /**
    * Load an existing project
    * @param projectPath Path to project directory
    * @returns Loaded project
    */
   load(projectPath: string): Promise<ChessProject>;
-  
+
   /**
    * Save project state
    * @param project Project to save
    */
   save(project: ChessProject): Promise<void>;
-  
+
   /**
    * List all projects in a directory
    * @param baseDir Base directory to search
    * @returns Array of project paths
    */
   list(baseDir?: string): Promise<string[]>;
-  
+
   /**
    * Delete a project
    * @param projectPath Path to project directory
    */
   delete(projectPath: string): Promise<void>;
-  
+
   /**
    * Check if path contains a valid project
    * @param projectPath Path to check
@@ -240,13 +240,13 @@ export interface ProjectManager {
 export interface CreateProjectConfig {
   /** Project name */
   name: string;
-  
+
   /** Project directory path */
   projectPath: string;
-  
+
   /** Root position (defaults to starting position) */
   rootPosition?: FenString;
-  
+
   /** Initial project configuration */
   config?: Partial<ProjectConfig>;
 }

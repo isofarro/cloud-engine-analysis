@@ -75,7 +75,7 @@ export class PrimaryVariationExplorerTask {
       try {
         console.log(`Loading existing graph from: ${this.config.graphPath}`);
         const loadedGraph = loadGraph(this.config.graphPath);
-  
+
         // Verify the loaded graph has the expected root position
         if (loadedGraph.rootPosition !== this.config.rootPosition) {
           console.warn(
