@@ -177,12 +177,43 @@ export class AnalysisRepo implements IAnalysisRepo {
    */
   async initializeSchema(): Promise<void> {
     return new Promise<void>((resolve, reject) => {
-      this.db.exec(AnalysisRepo.SQL_QUERIES.INIT_SCHEMA, err => {
-        if (err) {
-          reject(new Error(`Schema initialization error: ${err.message}`));
-        } else {
-          resolve();
-        }
+      // Use serialize to ensure operations are executed sequentially
+      this.db.serialize(() => {
+        // Enable WAL mode for better concurrency handling
+        this.db.run('PRAGMA journal_mode=WAL');
+
+        // Set busy timeout to handle concurrent access
+        this.db.run('PRAGMA busy_timeout=10000');
+
+        // Begin immediate transaction to prevent concurrent schema modifications
+        this.db.run('BEGIN IMMEDIATE TRANSACTION', err => {
+          if (err) {
+            reject(new Error(`Failed to begin transaction: ${err.message}`));
+            return;
+          }
+
+          this.db.exec(AnalysisRepo.SQL_QUERIES.INIT_SCHEMA, err => {
+            if (err) {
+              // Rollback on error
+              this.db.run('ROLLBACK', () => {
+                reject(
+                  new Error(`Schema initialization error: ${err.message}`)
+                );
+              });
+            } else {
+              // Commit on success
+              this.db.run('COMMIT', commitErr => {
+                if (commitErr) {
+                  reject(
+                    new Error(`Failed to commit schema: ${commitErr.message}`)
+                  );
+                } else {
+                  resolve();
+                }
+              });
+            }
+          });
+        });
       });
     });
   }

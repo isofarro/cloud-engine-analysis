@@ -19,7 +19,6 @@ export class StatePersistenceService {
 
   constructor(config: StatePersistenceConfig) {
     this.config = config;
-    this.ensureStateDirectory();
   }
 
   /**
@@ -271,9 +270,12 @@ export class StatePersistenceService {
   private async ensureStateDirectory(): Promise<void> {
     try {
       await fs.mkdir(this.config.stateDirectory, { recursive: true });
-    } catch (error) {
-      console.error(`Failed to create state directory: ${error}`);
-      throw error;
+    } catch (error: any) {
+      // Only throw if it's not a "directory already exists" error
+      if (error.code !== 'EEXIST') {
+        console.error(`Failed to create state directory: ${error}`);
+        throw error;
+      }
     }
   }
 

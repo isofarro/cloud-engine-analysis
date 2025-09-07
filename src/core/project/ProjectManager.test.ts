@@ -12,7 +12,7 @@ describe('ProjectManager', () => {
   let projectManager: ProjectManager;
   let testDir: string;
 
-  beforeEach(() => {
+  beforeEach(async () => {
     // Create unique test directory for each test
     testDir = path.join(
       TEST_BASE_DIR,
@@ -20,14 +20,13 @@ describe('ProjectManager', () => {
     );
 
     // Ensure the test base directory exists
-    if (!fs.existsSync(TEST_BASE_DIR)) {
-      fs.mkdirSync(TEST_BASE_DIR, { recursive: true });
-    }
+    await fs.promises.mkdir(TEST_BASE_DIR, { recursive: true });
 
-    // Ensure the specific test directory exists
-    if (!fs.existsSync(testDir)) {
-      fs.mkdirSync(testDir, { recursive: true });
-    }
+    // Ensure the specific test directory exists with proper error handling
+    await fs.promises.mkdir(testDir, { recursive: true });
+
+    // Wait for filesystem to stabilize
+    await new Promise(resolve => setTimeout(resolve, 50));
 
     projectManager = new ProjectManager(testDir);
   });
@@ -39,52 +38,29 @@ describe('ProjectManager', () => {
 
   // Updated cleanup function - only removes specific test directory
   async function cleanupTestDirectory(dir: string): Promise<void> {
-    if (!fs.existsSync(dir)) return;
+    if (!fs.existsSync(dir) || dir === TEST_BASE_DIR) return;
 
-    // NEVER remove the base directory, only individual test directories
-    if (dir === TEST_BASE_DIR) {
-      console.warn(
-        'Attempted to remove base test directory - skipping for safety'
-      );
-      return;
-    }
-
-    let retries = 0;
-    const maxRetries = 5;
-
-    while (retries < maxRetries) {
-      try {
-        // Force close any remaining database connections
-        const dbFiles = findDatabaseFiles(dir);
-        for (const dbFile of dbFiles) {
-          try {
-            const tempPath = dbFile + '.cleanup';
-            if (fs.existsSync(dbFile)) {
-              fs.renameSync(dbFile, tempPath);
-              fs.unlinkSync(tempPath);
-            }
-          } catch (dbError) {
-            await new Promise(resolve => setTimeout(resolve, 200));
+    try {
+      // Close any database connections first
+      const dbFiles = findDatabaseFiles(dir);
+      for (const dbFile of dbFiles) {
+        try {
+          // Just remove the file directly
+          if (fs.existsSync(dbFile)) {
+            fs.unlinkSync(dbFile);
           }
+        } catch (dbError) {
+          // Ignore database cleanup errors
         }
-
-        // Remove the entire test directory (but never the base)
-        if (fs.existsSync(dir)) {
-          fs.rmSync(dir, { recursive: true, force: true });
-        }
-
-        return; // Success
-      } catch (error) {
-        retries++;
-        if (retries >= maxRetries) {
-          console.warn(
-            `Failed to cleanup test directory after ${maxRetries} attempts:`,
-            error
-          );
-          return;
-        }
-        await new Promise(resolve => setTimeout(resolve, 500 * retries));
       }
+
+      // Wait a bit for file handles to close
+      await new Promise(resolve => setTimeout(resolve, 100));
+
+      // Remove the directory
+      await fs.promises.rm(dir, { recursive: true, force: true });
+    } catch (error) {
+      console.warn('Cleanup warning (non-critical):', error);
     }
   }
 
@@ -118,16 +94,18 @@ describe('ProjectManager', () => {
 
   describe('create', () => {
     it('should create a new project with default configuration', async () => {
-      const projectPath = path.join(testDir, 'test-project');
+      // Generate unique project name to avoid conflicts in concurrent tests
+      const uniqueProjectName = `test-project-${Date.now()}-${Math.random().toString(36).substring(2)}`;
+      const projectPath = path.join(testDir, uniqueProjectName);
 
       const config: CreateProjectConfig = {
-        name: 'test-project',
+        name: uniqueProjectName,
         projectPath: projectPath,
       };
 
       const project = await projectManager.create(config);
 
-      expect(project.name).toBe('test-project');
+      expect(project.name).toBe(uniqueProjectName);
       expect(project.rootPosition).toBe(
         'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1'
       );
@@ -232,14 +210,18 @@ describe('ProjectManager', () => {
     });
 
     it('should list all projects in directory', async () => {
-      await projectManager.create({
+      // Create projects with explicit error handling
+      const project1 = await projectManager.create({
         name: 'project1',
         projectPath: path.join(testDir, 'project1'),
       });
-      await projectManager.create({
+      expect(project1).toBeDefined();
+
+      const project2 = await projectManager.create({
         name: 'project2',
         projectPath: path.join(testDir, 'project2'),
       });
+      expect(project2).toBeDefined();
 
       const projects = await projectManager.list(testDir);
       expect(projects).toHaveLength(2);
@@ -270,20 +252,32 @@ describe('ProjectManager', () => {
   });
 
   describe('list', () => {
-    it('should list all projects in directory', async () => {
-      await projectManager.create({
+    it('should list all projects in a directory', async () => {
+      const project1Path = path.join(testDir, 'project1');
+      const project2Path = path.join(testDir, 'project2');
+
+      // Create projects sequentially to avoid database lock conflicts
+      const project1 = await projectManager.create({
         name: 'project1',
-        projectPath: path.join(testDir, 'project1'),
-      });
-      await projectManager.create({
-        name: 'project2',
-        projectPath: path.join(testDir, 'project2'),
+        projectPath: project1Path,
       });
 
+      // Wait between project creations to ensure database is fully closed
+      await new Promise(resolve => setTimeout(resolve, 500));
+
+      const project2 = await projectManager.create({
+        name: 'project2',
+        projectPath: project2Path,
+      });
+
+      // Additional wait for filesystem and database to stabilize
+      await new Promise(resolve => setTimeout(resolve, 300));
+
       const projects = await projectManager.list(testDir);
+
       expect(projects).toHaveLength(2);
-      expect(projects).toContain(path.resolve(path.join(testDir, 'project1')));
-      expect(projects).toContain(path.resolve(path.join(testDir, 'project2')));
+      expect(projects).toContain(path.resolve(project1Path));
+      expect(projects).toContain(path.resolve(project2Path));
     });
   });
 

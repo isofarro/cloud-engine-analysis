@@ -21,14 +21,19 @@ export interface SerializedChessGraph {
  * @param directory - Optional directory path. Defaults to './graphs'
  * @returns The full path of the saved file
  */
-export function saveGraph(
+export async function saveGraph(
   graph: ChessGraph,
   filename?: string,
   directory: string = './graphs'
-): string {
-  // Ensure directory exists
-  if (!fs.existsSync(directory)) {
-    fs.mkdirSync(directory, { recursive: true });
+): Promise<string> {
+  // Ensure directory exists - this needs to be awaited properly
+  try {
+    await fs.promises.mkdir(directory, { recursive: true });
+  } catch (error: any) {
+    // Ignore error if directory already exists
+    if (error.code !== 'EEXIST') {
+      throw error;
+    }
   }
 
   // Generate filename if not provided
@@ -50,8 +55,12 @@ export function saveGraph(
     nodes: graph.nodes,
   };
 
-  // Write to file
-  fs.writeFileSync(filePath, JSON.stringify(serializedGraph, null, 2), 'utf-8');
+  // Write to file asynchronously
+  await fs.promises.writeFile(
+    filePath,
+    JSON.stringify(serializedGraph, null, 2),
+    'utf-8'
+  );
 
   return filePath;
 }

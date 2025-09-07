@@ -119,7 +119,7 @@ export class PrimaryVariationExplorerTask {
    * Initialize graph with fallback behavior
    */
   private initializeGraph(): ChessGraph {
-    const graph = new ChessGraph();
+    const graph = new ChessGraph(this.config.rootPosition); // Pass rootPosition to constructor
 
     // Try to load existing graph if path is provided
     if (this.config.graphPath && fs.existsSync(this.config.graphPath)) {

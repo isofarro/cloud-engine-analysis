@@ -436,19 +436,6 @@ export class PVExplorationStrategy implements AnalysisStrategy {
   }
 
   /**
-   * Parse engine slug into name and version components
-   */
-  private parseEngineSlug(slug: string): [string, string] {
-    const parts = slug.split('-');
-    if (parts.length >= 2) {
-      const version = parts[parts.length - 1];
-      const name = parts.slice(0, -1).join('-');
-      return [name, version];
-    }
-    return [slug, '1.0'];
-  }
-
-  /**
    * Check for resumable state
    */
   private async checkForResumableState(
@@ -477,6 +464,21 @@ export class PVExplorationStrategy implements AnalysisStrategy {
 
     return null;
   }
+
+  // Remove the parseEngineSlug method entirely - it's now handled by AnalysisStoreService
+  // DELETE THESE LINES:
+  // /**
+  //  * Parse engine slug into name and version components
+  //  */
+  // private parseEngineSlug(slug: string): [string, string] {
+  //   const parts = slug.split('-');
+  //   if (parts.length >= 2) {
+  //     const version = parts[parts.length - 1];
+  //     const name = parts.slice(0, -1).join('-');
+  //     return [name, version];
+  //   }
+  //   return [slug, '1.0'];
+  // }
 
   /**
    * Get current exploration state (for monitoring/debugging)

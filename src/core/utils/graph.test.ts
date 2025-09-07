@@ -13,11 +13,13 @@ import {
 const TEST_DIR = './test-graphs';
 
 describe('Graph Utils', () => {
-  beforeEach(() => {
+  beforeEach(async () => {
     // Clean up test directory before each test
     if (fs.existsSync(TEST_DIR)) {
       fs.rmSync(TEST_DIR, { recursive: true, force: true });
     }
+    // Ensure test directory exists
+    await fs.promises.mkdir(TEST_DIR, { recursive: true });
   });
 
   afterEach(() => {
@@ -28,9 +30,9 @@ describe('Graph Utils', () => {
   });
 
   describe('saveGraph', () => {
-    it('should save an empty graph', () => {
+    it('should save an empty graph', async () => {
       const graph = new ChessGraph();
-      const filePath = saveGraph(graph, 'empty-graph.json', TEST_DIR);
+      const filePath = await saveGraph(graph, 'empty-graph.json', TEST_DIR);
 
       expect(fs.existsSync(filePath)).toBe(true);
       expect(filePath).toBe(path.join(TEST_DIR, 'empty-graph.json'));
@@ -42,17 +44,17 @@ describe('Graph Utils', () => {
       });
     });
 
-    it('should save a graph with root position', () => {
+    it('should save a graph with root position', async () => {
       const rootFen =
         'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
       const graph = new ChessGraph(rootFen);
-      const filePath = saveGraph(graph, 'root-graph.json', TEST_DIR);
+      const filePath = await saveGraph(graph, 'root-graph.json', TEST_DIR);
 
       const content = JSON.parse(fs.readFileSync(filePath, 'utf-8'));
       expect(content.rootPosition).toBe(rootFen);
     });
 
-    it('should save a graph with moves', () => {
+    it('should save a graph with moves', async () => {
       const startFen =
         'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
       const afterE4Fen =
@@ -61,7 +63,7 @@ describe('Graph Utils', () => {
       const graph = new ChessGraph(startFen);
       graph.addMove(startFen, { move: 'e2e4', toFen: afterE4Fen }, true);
 
-      const filePath = saveGraph(graph, 'moves-graph.json', TEST_DIR);
+      const filePath = await saveGraph(graph, 'moves-graph.json', TEST_DIR);
       const content = JSON.parse(fs.readFileSync(filePath, 'utf-8'));
 
       expect(content.nodes[startFen]).toEqual({
@@ -75,29 +77,29 @@ describe('Graph Utils', () => {
       });
     });
 
-    it('should generate filename when not provided', () => {
+    it('should generate filename when not provided', async () => {
       const graph = new ChessGraph();
-      const filePath = saveGraph(graph, undefined, TEST_DIR);
+      const filePath = await saveGraph(graph, undefined, TEST_DIR);
 
       expect(fs.existsSync(filePath)).toBe(true);
       expect(filePath).toMatch(new RegExp(`^${TEST_DIR.replace('./', '')}`));
       expect(path.basename(filePath)).toMatch(/^chess-graph-.*\.json$/);
     });
 
-    it('should add .json extension if missing', () => {
+    it('should add .json extension if missing', async () => {
       const graph = new ChessGraph();
-      const filePath = saveGraph(graph, 'test-graph', TEST_DIR);
+      const filePath = await saveGraph(graph, 'test-graph', TEST_DIR);
 
       expect(filePath).toBe(path.join(TEST_DIR, 'test-graph.json'));
       expect(fs.existsSync(filePath)).toBe(true);
     });
 
-    it('should create directory if it does not exist', () => {
+    it('should create directory if it does not exist', async () => {
       const graph = new ChessGraph();
       const newDir = './new-test-dir';
 
       try {
-        const filePath = saveGraph(graph, 'test.json', newDir);
+        const filePath = await saveGraph(graph, 'test.json', newDir);
         expect(fs.existsSync(newDir)).toBe(true);
         expect(fs.existsSync(filePath)).toBe(true);
       } finally {
@@ -109,9 +111,9 @@ describe('Graph Utils', () => {
   });
 
   describe('loadGraph', () => {
-    it('should load an empty graph', () => {
+    it('should load an empty graph', async () => {
       const originalGraph = new ChessGraph();
-      const filePath = saveGraph(originalGraph, 'empty.json', TEST_DIR);
+      const filePath = await saveGraph(originalGraph, 'empty.json', TEST_DIR);
 
       const loadedGraph = loadGraph(filePath);
 
@@ -119,18 +121,18 @@ describe('Graph Utils', () => {
       expect(loadedGraph.nodes).toEqual({});
     });
 
-    it('should load a graph with root position', () => {
+    it('should load a graph with root position', async () => {
       const rootFen =
         'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
       const originalGraph = new ChessGraph(rootFen);
-      const filePath = saveGraph(originalGraph, 'root.json', TEST_DIR);
+      const filePath = await saveGraph(originalGraph, 'root.json', TEST_DIR);
 
       const loadedGraph = loadGraph(filePath);
 
       expect(loadedGraph.rootPosition).toBe(rootFen);
     });
 
-    it('should load a graph with moves and preserve structure', () => {
+    it('should load a graph with moves and preserve structure', async () => {
       const startFen =
         'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
       const afterE4Fen =
@@ -150,7 +152,7 @@ describe('Graph Utils', () => {
       });
       originalGraph.addMove(afterE4Fen, { move: 'e7e5', toFen: afterE5Fen });
 
-      const filePath = saveGraph(originalGraph, 'complex.json', TEST_DIR);
+      const filePath = await saveGraph(originalGraph, 'complex.json', TEST_DIR);
       const loadedGraph = loadGraph(filePath);
 
       // Check root position
@@ -226,9 +228,9 @@ describe('Graph Utils', () => {
   });
 
   describe('deleteGraph', () => {
-    it('should delete existing file and return true', () => {
+    it('should delete existing file and return true', async () => {
       const graph = new ChessGraph();
-      const filePath = saveGraph(graph, 'to-delete.json', TEST_DIR);
+      const filePath = await saveGraph(graph, 'to-delete.json', TEST_DIR);
 
       expect(fs.existsSync(filePath)).toBe(true);
 
@@ -245,7 +247,7 @@ describe('Graph Utils', () => {
   });
 
   describe('round-trip consistency', () => {
-    it('should maintain graph integrity through save and load cycle', () => {
+    it('should maintain graph integrity through save and load cycle', async () => {
       const startFen =
         'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
       const originalGraph = new ChessGraph(startFen);
@@ -257,7 +259,11 @@ describe('Graph Utils', () => {
       originalGraph.addMove('fen1', { move: 'e7e5', toFen: 'fen4' });
 
       // Save and load
-      const filePath = saveGraph(originalGraph, 'round-trip.json', TEST_DIR);
+      const filePath = await saveGraph(
+        originalGraph,
+        'round-trip.json',
+        TEST_DIR
+      );
       const loadedGraph = loadGraph(filePath);
 
       // Verify everything matches

@@ -51,160 +51,143 @@ export class ProjectManager implements IProjectManager {
    */
   async create(config: CreateProjectConfig): Promise<ChessProject> {
     const projectPath = path.resolve(config.projectPath);
+    const projectId = this.generateProjectId(config.name);
+    const rootPosition = config.rootPosition || DEFAULT_STARTING_POSITION;
 
     // Check if project already exists
     if (await this.isValidProject(projectPath)) {
-      throw new Error(`Project already exists at: ${projectPath}`);
-    }
-
-    // Ensure project directory exists with enhanced error handling
-    try {
-      if (!fs.existsSync(projectPath)) {
-        fs.mkdirSync(projectPath, { recursive: true });
-      }
-
-      // Enhanced verification with retries
-      let retries = 0;
-      const maxRetries = 5;
-      while (!fs.existsSync(projectPath) && retries < maxRetries) {
-        await new Promise(resolve => setTimeout(resolve, 100));
-        retries++;
-      }
-
-      if (!fs.existsSync(projectPath)) {
-        throw new Error(
-          `Failed to create project directory after ${maxRetries} retries: ${projectPath}`
-        );
-      }
-
-      // Extended wait for file system stabilization
-      await new Promise(resolve => setTimeout(resolve, 200));
-    } catch (error) {
-      throw new Error(`Directory creation failed: ${error}`);
-    }
-
-    // Generate project ID and metadata
-    const projectId = this.generateProjectId(config.name);
-    const rootPosition = config.rootPosition || DEFAULT_STARTING_POSITION;
-    const now = new Date();
-
-    const metadata: ProjectMetadata = {
-      id: projectId,
-      name: config.name,
-      rootPosition,
-      createdAt: now.toISOString(),
-      updatedAt: now.toISOString(),
-      config: config.config || {},
-    };
-
-    // Save project metadata with enhanced error handling
-    const metadataPath = path.join(projectPath, PROJECT_METADATA_FILE);
-    try {
-      // Ensure parent directory exists
-      const parentDir = path.dirname(metadataPath);
-      if (!fs.existsSync(parentDir)) {
-        fs.mkdirSync(parentDir, { recursive: true });
-        await new Promise(resolve => setTimeout(resolve, 100));
-      }
-
-      fs.writeFileSync(
-        metadataPath,
-        JSON.stringify(metadata, null, 2),
-        'utf-8'
+      throw new Error(
+        `Project already exists at: ${path.relative(process.cwd(), projectPath)}`
       );
-
-      // Verify file was written
-      if (!fs.existsSync(metadataPath)) {
-        throw new Error(`Metadata file was not created: ${metadataPath}`);
-      }
-    } catch (error) {
-      throw new Error(`Failed to write project metadata: ${error}`);
     }
 
-    // Create and save chess graph with verification
-    const graph = new ChessGraph(rootPosition);
-    const graphPath = path.join(projectPath, 'graph.json');
+    // Create project directory with enhanced error handling
     try {
-      saveGraph(graph, 'graph.json', projectPath);
+      await fs.promises.mkdir(projectPath, { recursive: true });
 
-      // Verify graph file was created
-      let graphRetries = 0;
-      while (!fs.existsSync(graphPath) && graphRetries < 5) {
+      // Verify directory was created successfully
+      let retries = 3;
+      while (retries > 0 && !fs.existsSync(projectPath)) {
         await new Promise(resolve => setTimeout(resolve, 100));
-        graphRetries++;
+        retries--;
       }
 
-      if (!fs.existsSync(graphPath)) {
-        throw new Error(`Graph file was not created: ${graphPath}`);
+      if (!fs.existsSync(projectPath)) {
+        throw new Error(`Failed to create project directory: ${projectPath}`);
       }
-    } catch (error) {
-      throw new Error(`Failed to save chess graph: ${error}`);
+    } catch (error: any) {
+      throw new Error(`Failed to create project directory: ${error.message}`);
     }
 
-    // Create analysis database with proper schema initialization
-    const databasePath = path.join(projectPath, 'analysis.db');
-    try {
-      const db = new sqlite3.Database(databasePath);
-      await createAnalysisStoreService(db);
-
-      // Wait for database operations to complete using serialize
-      await new Promise<void>((resolve, reject) => {
-        db.serialize(() => {
-          // Verify the schema was created successfully
-          db.run('SELECT 1', err => {
-            if (err) {
-              reject(new Error(`Database verification error: ${err.message}`));
-            } else {
-              resolve();
-            }
-          });
-        });
-      });
-
-      // Now safely close the database
-      await new Promise<void>((resolve, reject) => {
-        db.close(err => {
-          if (err) {
-            reject(new Error(`Database close error: ${err.message}`));
-          } else {
-            resolve();
-          }
-        });
-      });
-
-      // Extended wait for database file to be fully written
-      await new Promise(resolve => setTimeout(resolve, 300));
-
-      // Verify database file exists
-      if (!fs.existsSync(databasePath)) {
-        throw new Error(`Database file was not created: ${databasePath}`);
-      }
-    } catch (error) {
-      throw new Error(`Failed to create analysis database: ${error}`);
-    }
-
-    // Final verification with extended wait
+    // Wait for filesystem to stabilize
     await new Promise(resolve => setTimeout(resolve, 200));
 
-    // Verify all required files exist
-    const requiredFiles = [projectPath, graphPath, databasePath, metadataPath];
-    const missingFiles = requiredFiles.filter(file => !fs.existsSync(file));
+    const now = new Date();
 
-    if (missingFiles.length > 0) {
-      throw new Error(`Missing required files: ${missingFiles.join(', ')}`);
-    }
-
-    return {
+    const project: ChessProject = {
       id: projectId,
       name: config.name,
       projectPath,
       rootPosition,
-      graphPath,
-      databasePath,
+      graphPath: path.join(projectPath, 'graph.json'),
+      databasePath: path.join(projectPath, 'analysis.db'),
       createdAt: now,
       updatedAt: now,
-      config: metadata.config,
+      config: {
+        defaultEngine: config.config?.defaultEngine,
+        analysisDepth: config.config?.analysisDepth,
+        multiPv: config.config?.multiPv,
+        ...config.config,
+      },
     };
+
+    // Save project metadata
+    await this.save(project);
+
+    // Create and save initial chess graph
+    const graph = new ChessGraph(rootPosition);
+    await this.saveGraph(project, graph);
+
+    // Initialize analysis database with proper synchronization
+    try {
+      // Ensure the database file doesn't exist from a previous failed attempt
+      if (fs.existsSync(project.databasePath)) {
+        fs.unlinkSync(project.databasePath);
+      }
+
+      // Create database with a timeout and proper error handling
+      const db = new sqlite3.Database(
+        project.databasePath,
+        sqlite3.OPEN_READWRITE | sqlite3.OPEN_CREATE
+      );
+
+      // Wait for database to be ready before initializing schema
+      await new Promise<void>((resolve, reject) => {
+        db.serialize(() => {
+          // Enable WAL mode for better concurrency
+          db.run('PRAGMA journal_mode=WAL', err => {
+            if (err) {
+              reject(new Error(`Failed to set WAL mode: ${err.message}`));
+              return;
+            }
+
+            // Set a reasonable timeout for database operations
+            db.run('PRAGMA busy_timeout=5000', err => {
+              if (err) {
+                reject(new Error(`Failed to set busy timeout: ${err.message}`));
+                return;
+              }
+              resolve();
+            });
+          });
+        });
+      });
+
+      const analysisStore = await createAnalysisStoreService(db);
+      await this.closeAnalysisStore(analysisStore);
+
+      // Wait for database file to be fully written to disk
+      await new Promise(resolve => setTimeout(resolve, 500)); // Increased from 300ms
+    } catch (error: any) {
+      throw new Error(`Failed to initialize database: ${error.message}`);
+    }
+
+    // Enhanced verification with more retries for concurrent test scenarios
+    let verificationRetries = 10; // Increased from 5
+    while (verificationRetries > 0) {
+      if (
+        fs.existsSync(project.projectPath) &&
+        fs.existsSync(project.graphPath) &&
+        fs.existsSync(project.databasePath)
+      ) {
+        break; // All files exist, verification passed
+      }
+
+      // Wait longer between retries for concurrent scenarios
+      await new Promise(resolve => setTimeout(resolve, 200)); // Increased from 100ms
+      verificationRetries--;
+    }
+
+    // Final check after retries
+    if (
+      !fs.existsSync(project.projectPath) ||
+      !fs.existsSync(project.graphPath) ||
+      !fs.existsSync(project.databasePath)
+    ) {
+      // Provide more detailed error information
+      const missingFiles = [];
+      if (!fs.existsSync(project.projectPath))
+        missingFiles.push('project directory');
+      if (!fs.existsSync(project.graphPath)) missingFiles.push('graph.json');
+      if (!fs.existsSync(project.databasePath))
+        missingFiles.push('analysis.db');
+
+      throw new Error(
+        `Project creation incomplete - missing: ${missingFiles.join(', ')}`
+      );
+    }
+
+    return project;
   }
 
   /**
@@ -256,8 +239,25 @@ export class ProjectManager implements IProjectManager {
       config: project.config,
     };
 
+    // Save project metadata with enhanced error handling
     const metadataPath = path.join(project.projectPath, PROJECT_METADATA_FILE);
-    fs.writeFileSync(metadataPath, JSON.stringify(metadata, null, 2), 'utf-8');
+    try {
+      // Ensure project directory exists before writing
+      await fs.promises.mkdir(project.projectPath, { recursive: true });
+
+      await fs.promises.writeFile(
+        metadataPath,
+        JSON.stringify(metadata, null, 2),
+        'utf-8'
+      );
+
+      // Verify file was written
+      if (!fs.existsSync(metadataPath)) {
+        throw new Error(`Metadata file was not created: ${metadataPath}`);
+      }
+    } catch (error) {
+      throw new Error(`Failed to write project metadata: ${error}`);
+    }
   }
 
   /**
@@ -420,7 +420,7 @@ export class ProjectManager implements IProjectManager {
    * Save chess graph to project
    */
   async saveGraph(project: ChessProject, graph: ChessGraph): Promise<void> {
-    saveGraph(graph, 'graph.json', project.projectPath);
+    await saveGraph(graph, 'graph.json', project.projectPath);
 
     // Update project timestamp
     await this.save({

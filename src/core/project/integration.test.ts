@@ -7,15 +7,11 @@ import { ChessGraph } from '../graph/ChessGraph';
 import sqlite3 from 'sqlite3';
 import * as fs from 'fs';
 import * as path from 'path';
+import { createAnalysisStoreService } from '../analysis-store';
 
 const TEST_INTEGRATION_BASE_DIR = './tmp/test-integration';
 
 // Add this import
-import {
-  createAnalysisRepo,
-  AnalysisStoreService,
-  createAnalysisStoreService,
-} from '../analysis-store';
 
 describe('Project Architecture Integration', () => {
   let testId: string;
@@ -33,9 +29,9 @@ describe('Project Architecture Integration', () => {
     testId = `test-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
     TEST_INTEGRATION_DIR = path.join(TEST_INTEGRATION_BASE_DIR, testId);
 
-    // Ensure test directory exists
+    // Ensure test directory exists with proper permissions BEFORE creating services
     if (!fs.existsSync(TEST_INTEGRATION_DIR)) {
-      fs.mkdirSync(TEST_INTEGRATION_DIR, { recursive: true });
+      fs.mkdirSync(TEST_INTEGRATION_DIR, { recursive: true, mode: 0o755 });
     }
 
     // Initialize components
@@ -47,7 +43,16 @@ describe('Project Architecture Integration', () => {
       TEST_INTEGRATION_DIR,
       `test-analysis-${testId}.db`
     );
-    db = new sqlite3.Database(testDbPath);
+
+    // Ensure the database file can be created with write permissions
+    if (fs.existsSync(testDbPath)) {
+      fs.unlinkSync(testDbPath);
+    }
+
+    db = new sqlite3.Database(
+      testDbPath,
+      sqlite3.OPEN_READWRITE | sqlite3.OPEN_CREATE
+    );
 
     // Use factory function to create AnalysisStoreService directly
     const analysisStore = await createAnalysisStoreService(db);
@@ -67,6 +72,8 @@ describe('Project Architecture Integration', () => {
     };
 
     taskExecutor = new AnalysisTaskExecutor(dependencies);
+
+    // Create StatePersistenceService AFTER ensuring directory exists
     persistenceService = new StatePersistenceService({
       stateDirectory: TEST_INTEGRATION_DIR,
       autoSaveIntervalMs: 5000,
