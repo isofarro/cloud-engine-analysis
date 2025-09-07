@@ -11,11 +11,9 @@ describe('ProjectCommands', () => {
       projectManager: {
         create: vi.fn(),
         load: vi.fn(),
-        save: vi.fn(),
         list: vi.fn(),
         delete: vi.fn(),
-        isValidProject: vi.fn(),
-      },
+      } as any,
       strategyRegistry: {
         register: vi.fn(),
         get: vi.fn(),
@@ -23,7 +21,7 @@ describe('ProjectCommands', () => {
         findApplicable: vi.fn(),
       },
       taskExecutor: {} as any,
-      analysisRepo: {} as any,
+      analysisStore: {} as any,
       graph: {} as any,
     };
 

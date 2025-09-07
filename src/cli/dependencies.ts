@@ -4,15 +4,16 @@ import {
   AnalysisStrategyRegistry,
 } from '../core/project/types';
 import { ChessGraph } from '../core/graph/ChessGraph';
-import { IAnalysisRepo } from '../core/analysis-store/IAnalysisRepo';
+import { AnalysisStoreService } from '../core/analysis-store/AnalysisStoreService';
 import { AnalysisTaskExecutor } from '../core/project/services/AnalysisTaskExecutor';
+import { createInMemoryAnalysisStoreService } from '../core/analysis-store';
 
 /**
- * Create CLI dependencies with defaults
+ * Creates CLI dependencies with optional overrides.
  */
-export function createCLIDependencies(
+export async function createCLIDependencies(
   overrides?: Partial<CLIDependencies>
-): CLIDependencies {
+): Promise<CLIDependencies> {
   // In a real implementation, these would be properly instantiated
   // with configuration, database connections, etc.
 
@@ -20,7 +21,7 @@ export function createCLIDependencies(
     projectManager: createDefaultProjectManager(),
     strategyRegistry: createDefaultStrategyRegistry(),
     taskExecutor: createDefaultTaskExecutor(),
-    analysisRepo: createDefaultAnalysisRepo(),
+    analysisStore: await createDefaultAnalysisStore(),
     graph: new ChessGraph(),
   };
 
@@ -43,7 +44,7 @@ function createDefaultTaskExecutor(): AnalysisTaskExecutor {
   throw new Error('AnalysisTaskExecutor implementation not provided');
 }
 
-function createDefaultAnalysisRepo(): IAnalysisRepo {
-  // This would return a real IAnalysisRepo implementation
-  throw new Error('IAnalysisRepo implementation not provided');
+async function createDefaultAnalysisStore(): Promise<AnalysisStoreService> {
+  // Use the factory function that creates an in-memory database
+  return createInMemoryAnalysisStoreService();
 }

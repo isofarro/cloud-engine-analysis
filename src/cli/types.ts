@@ -3,7 +3,7 @@ import {
   AnalysisStrategyRegistry,
 } from '../core/project/types';
 import { ChessGraph } from '../core/graph/ChessGraph';
-import { IAnalysisRepo } from '../core/analysis-store/IAnalysisRepo';
+import { AnalysisStoreService } from '../core/analysis-store/AnalysisStoreService';
 import { AnalysisTaskExecutor } from '../core/project/services/AnalysisTaskExecutor';
 
 /**
@@ -54,7 +54,7 @@ export interface CLIDependencies {
   projectManager: ProjectManager;
   strategyRegistry: AnalysisStrategyRegistry;
   taskExecutor: AnalysisTaskExecutor;
-  analysisRepo: IAnalysisRepo;
+  analysisStore: AnalysisStoreService;
   graph: ChessGraph;
 }
 

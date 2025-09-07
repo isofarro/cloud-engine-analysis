@@ -54,7 +54,7 @@ export class AnalysisCommands {
       const context: AnalysisContext = {
         position: fen as FenString,
         graph: this.dependencies.graph,
-        analysisRepo: this.dependencies.analysisRepo,
+        analysisStore: this.dependencies.analysisStore,
         config: analysisConfig,
         project,
         metadata: {
@@ -307,7 +307,9 @@ export class AnalysisCommands {
 
   private async getAnalysisCount(positions: string[]): Promise<number> {
     // Count how many positions have analysis data using AnalysisChecker
-    const analysisChecker = new AnalysisChecker(this.dependencies.analysisRepo);
+    const analysisChecker = new AnalysisChecker(
+      this.dependencies.analysisStore
+    );
     let count = 0;
     for (const position of positions) {
       const checkResult = await analysisChecker.checkPosition(
@@ -319,7 +321,9 @@ export class AnalysisCommands {
   }
 
   private async getUnanalyzedPositions(positions: string[]): Promise<string[]> {
-    const analysisChecker = new AnalysisChecker(this.dependencies.analysisRepo);
+    const analysisChecker = new AnalysisChecker(
+      this.dependencies.analysisStore
+    );
     const unanalyzed: string[] = [];
     for (const position of positions) {
       const checkResult = await analysisChecker.checkPosition(
@@ -337,7 +341,7 @@ export class AnalysisCommands {
     for (const position of positions) {
       // Use getBestAnalysisForPosition which only requires FEN
       const analysis =
-        await this.dependencies.analysisRepo.getBestAnalysisForPosition(
+        await this.dependencies.analysisStore.getBestAnalysisForPosition(
           position as FenString
         );
       if (analysis) {
