@@ -10,32 +10,53 @@ import {
   printGraph,
 } from './graph';
 
-const TEST_DIR = './test-graphs';
+// Use persistent base directory for all graph tests
+const TEST_BASE_DIR = './tmp/test-graphs';
 
 describe('Graph Utils', () => {
+  let testDir: string;
+
   beforeEach(async () => {
-    // Clean up test directory before each test
-    if (fs.existsSync(TEST_DIR)) {
-      fs.rmSync(TEST_DIR, { recursive: true, force: true });
-    }
-    // Ensure test directory exists
-    await fs.promises.mkdir(TEST_DIR, { recursive: true });
+    // Create unique test directory for each test
+    testDir = path.join(
+      TEST_BASE_DIR,
+      `${Date.now()}-${process.pid}-${Math.random().toString(36).substring(2)}`
+    );
+
+    // Ensure the test base directory exists
+    await fs.promises.mkdir(TEST_BASE_DIR, { recursive: true });
+
+    // Ensure the specific test directory exists
+    await fs.promises.mkdir(testDir, { recursive: true });
+
+    // Wait for filesystem to stabilize
+    await new Promise(resolve => setTimeout(resolve, 10));
   });
 
-  afterEach(() => {
-    // Clean up test directory after each test
-    if (fs.existsSync(TEST_DIR)) {
-      fs.rmSync(TEST_DIR, { recursive: true, force: true });
-    }
+  afterEach(async () => {
+    // Only clean up this specific test's directory
+    await cleanupTestDirectory(testDir);
   });
+
+  // Cleanup function - only removes specific test directory
+  async function cleanupTestDirectory(dir: string): Promise<void> {
+    if (fs.existsSync(dir)) {
+      try {
+        fs.rmSync(dir, { recursive: true, force: true });
+      } catch (error) {
+        // Ignore cleanup errors to prevent test failures
+        console.warn(`Failed to cleanup test directory ${dir}:`, error);
+      }
+    }
+  }
 
   describe('saveGraph', () => {
     it('should save an empty graph', async () => {
       const graph = new ChessGraph();
-      const filePath = await saveGraph(graph, 'empty-graph.json', TEST_DIR);
+      const filePath = await saveGraph(graph, 'empty-graph.json', testDir);
 
       expect(fs.existsSync(filePath)).toBe(true);
-      expect(filePath).toBe(path.join(TEST_DIR, 'empty-graph.json'));
+      expect(filePath).toBe(path.join(testDir, 'empty-graph.json'));
 
       const content = JSON.parse(fs.readFileSync(filePath, 'utf-8'));
       expect(content).toEqual({
@@ -48,7 +69,7 @@ describe('Graph Utils', () => {
       const rootFen =
         'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
       const graph = new ChessGraph(rootFen);
-      const filePath = await saveGraph(graph, 'root-graph.json', TEST_DIR);
+      const filePath = await saveGraph(graph, 'root-graph.json', testDir);
 
       const content = JSON.parse(fs.readFileSync(filePath, 'utf-8'));
       expect(content.rootPosition).toBe(rootFen);
@@ -63,7 +84,7 @@ describe('Graph Utils', () => {
       const graph = new ChessGraph(startFen);
       graph.addMove(startFen, { move: 'e2e4', toFen: afterE4Fen }, true);
 
-      const filePath = await saveGraph(graph, 'moves-graph.json', TEST_DIR);
+      const filePath = await saveGraph(graph, 'moves-graph.json', testDir);
       const content = JSON.parse(fs.readFileSync(filePath, 'utf-8'));
 
       expect(content.nodes[startFen]).toEqual({
@@ -79,18 +100,18 @@ describe('Graph Utils', () => {
 
     it('should generate filename when not provided', async () => {
       const graph = new ChessGraph();
-      const filePath = await saveGraph(graph, undefined, TEST_DIR);
+      const filePath = await saveGraph(graph, undefined, testDir);
 
       expect(fs.existsSync(filePath)).toBe(true);
-      expect(filePath).toMatch(new RegExp(`^${TEST_DIR.replace('./', '')}`));
+      expect(filePath).toMatch(new RegExp(`^${testDir.replace('./', '')}`));
       expect(path.basename(filePath)).toMatch(/^chess-graph-.*\.json$/);
     });
 
     it('should add .json extension if missing', async () => {
       const graph = new ChessGraph();
-      const filePath = await saveGraph(graph, 'test-graph', TEST_DIR);
+      const filePath = await saveGraph(graph, 'test-graph', testDir);
 
-      expect(filePath).toBe(path.join(TEST_DIR, 'test-graph.json'));
+      expect(filePath).toBe(path.join(testDir, 'test-graph.json'));
       expect(fs.existsSync(filePath)).toBe(true);
     });
 
@@ -113,7 +134,7 @@ describe('Graph Utils', () => {
   describe('loadGraph', () => {
     it('should load an empty graph', async () => {
       const originalGraph = new ChessGraph();
-      const filePath = await saveGraph(originalGraph, 'empty.json', TEST_DIR);
+      const filePath = await saveGraph(originalGraph, 'empty.json', testDir);
 
       const loadedGraph = loadGraph(filePath);
 
@@ -125,7 +146,7 @@ describe('Graph Utils', () => {
       const rootFen =
         'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
       const originalGraph = new ChessGraph(rootFen);
-      const filePath = await saveGraph(originalGraph, 'root.json', TEST_DIR);
+      const filePath = await saveGraph(originalGraph, 'root.json', testDir);
 
       const loadedGraph = loadGraph(filePath);
 
@@ -152,7 +173,7 @@ describe('Graph Utils', () => {
       });
       originalGraph.addMove(afterE4Fen, { move: 'e7e5', toFen: afterE5Fen });
 
-      const filePath = await saveGraph(originalGraph, 'complex.json', TEST_DIR);
+      const filePath = await saveGraph(originalGraph, 'complex.json', testDir);
       const loadedGraph = loadGraph(filePath);
 
       // Check root position
@@ -179,8 +200,8 @@ describe('Graph Utils', () => {
     });
 
     it('should throw error for invalid JSON', () => {
-      const invalidJsonFile = path.join(TEST_DIR, 'invalid.json');
-      fs.mkdirSync(TEST_DIR, { recursive: true });
+      const invalidJsonFile = path.join(testDir, 'invalid.json');
+      fs.mkdirSync(testDir, { recursive: true });
       fs.writeFileSync(invalidJsonFile, 'invalid json content', 'utf-8');
 
       expect(() => loadGraph(invalidJsonFile)).toThrow(
@@ -189,11 +210,8 @@ describe('Graph Utils', () => {
     });
 
     it('should throw error for invalid graph structure', () => {
-      const invalidStructureFile = path.join(
-        TEST_DIR,
-        'invalid-structure.json'
-      );
-      fs.mkdirSync(TEST_DIR, { recursive: true });
+      const invalidStructureFile = path.join(testDir, 'invalid-structure.json');
+      fs.mkdirSync(testDir, { recursive: true });
       fs.writeFileSync(
         invalidStructureFile,
         JSON.stringify('not an object'),
@@ -213,24 +231,24 @@ describe('Graph Utils', () => {
     });
 
     it('should list JSON files in directory', () => {
-      fs.mkdirSync(TEST_DIR, { recursive: true });
-      fs.writeFileSync(path.join(TEST_DIR, 'graph1.json'), '{}');
-      fs.writeFileSync(path.join(TEST_DIR, 'graph2.json'), '{}');
-      fs.writeFileSync(path.join(TEST_DIR, 'not-graph.txt'), 'text');
+      fs.mkdirSync(testDir, { recursive: true });
+      fs.writeFileSync(path.join(testDir, 'graph1.json'), '{}');
+      fs.writeFileSync(path.join(testDir, 'graph2.json'), '{}');
+      fs.writeFileSync(path.join(testDir, 'not-graph.txt'), 'text');
 
-      const files = listGraphFiles(TEST_DIR);
+      const files = listGraphFiles(testDir);
 
       expect(files).toHaveLength(2);
-      expect(files).toContain(path.join(TEST_DIR, 'graph1.json'));
-      expect(files).toContain(path.join(TEST_DIR, 'graph2.json'));
-      expect(files).not.toContain(path.join(TEST_DIR, 'not-graph.txt'));
+      expect(files).toContain(path.join(testDir, 'graph1.json'));
+      expect(files).toContain(path.join(testDir, 'graph2.json'));
+      expect(files).not.toContain(path.join(testDir, 'not-graph.txt'));
     });
   });
 
   describe('deleteGraph', () => {
     it('should delete existing file and return true', async () => {
       const graph = new ChessGraph();
-      const filePath = await saveGraph(graph, 'to-delete.json', TEST_DIR);
+      const filePath = await saveGraph(graph, 'to-delete.json', testDir);
 
       expect(fs.existsSync(filePath)).toBe(true);
 
@@ -262,7 +280,7 @@ describe('Graph Utils', () => {
       const filePath = await saveGraph(
         originalGraph,
         'round-trip.json',
-        TEST_DIR
+        testDir
       );
       const loadedGraph = loadGraph(filePath);
 

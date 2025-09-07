@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, afterAll } from 'vitest';
 import { ProjectManager } from './ProjectManager';
 import { AnalysisTaskExecutor } from './services/AnalysisTaskExecutor';
 import { AnalysisChecker } from './services/AnalysisChecker';
@@ -110,6 +110,28 @@ describe('Project Architecture Integration', () => {
     // Reset arrays
     createdProjects.length = 0;
     createdAnalysisStores.length = 0;
+  });
+
+  afterAll(async () => {
+    // Clean up the entire test-integration base directory
+    if (fs.existsSync(TEST_INTEGRATION_BASE_DIR)) {
+      try {
+        const contents = fs.readdirSync(TEST_INTEGRATION_BASE_DIR);
+        for (const item of contents) {
+          const itemPath = path.join(TEST_INTEGRATION_BASE_DIR, item);
+          try {
+            fs.rmSync(itemPath, { recursive: true, force: true });
+          } catch (error) {
+            console.warn(
+              `Failed to clean up integration test directory ${itemPath}:`,
+              error
+            );
+          }
+        }
+      } catch (error) {
+        console.warn(`Failed to read integration test base directory:`, error);
+      }
+    }
   });
 
   async function cleanupIntegrationDirectory(dir: string): Promise<void> {

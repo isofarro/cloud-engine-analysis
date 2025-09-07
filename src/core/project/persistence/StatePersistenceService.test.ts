@@ -2,7 +2,6 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { StatePersistenceService } from './StatePersistenceService';
 import { StatePersistenceConfig } from './types';
 import * as fs from 'fs';
-import * as path from 'path';
 
 const TEST_STATE_DIR = './tmp/test-state';
 

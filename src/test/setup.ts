@@ -21,54 +21,38 @@ beforeAll(() => {
 
 // Global test cleanup - PRESERVE base directories, clean only contents
 afterAll(() => {
-  // Clean up test directory contents but preserve the base structure
-  const baseDirsToClean = ['./tmp/test-projects', './tmp/test-integration'];
+  // Remove or comment out the problematic cleanup
+  afterAll(() => {
+    // REMOVE THIS SECTION - it causes race conditions
+    // const baseDirsToClean = ['./tmp/test-projects', './tmp/test-integration'];
 
-  baseDirsToClean.forEach(baseDir => {
-    if (fs.existsSync(baseDir)) {
+    // Keep only the safe cleanup that doesn't interfere with test directories
+    if (fs.existsSync('./tmp')) {
       try {
-        const contents = fs.readdirSync(baseDir);
-        for (const item of contents) {
-          const itemPath = path.join(baseDir, item);
+        const tmpContents = fs.readdirSync('./tmp');
+        for (const item of tmpContents) {
+          // Skip the persistent base directories
+          if (
+            item === 'test-projects' ||
+            item === 'test-integration' ||
+            item === 'test-state'
+          ) {
+            continue;
+          }
+
+          const itemPath = path.join('./tmp', item);
           try {
-            // Remove all test subdirectories but preserve the base directory
-            fs.rmSync(itemPath, { recursive: true, force: true });
+            // Only remove other test-related directories
+            if (item.startsWith('test-') || item.includes('test')) {
+              fs.rmSync(itemPath, { recursive: true, force: true });
+            }
           } catch (error) {
             console.warn(`Failed to clean up ${itemPath}:`, error);
           }
         }
       } catch (error) {
-        console.warn(`Failed to read ${baseDir}:`, error);
+        console.warn('Failed to read ./tmp directory:', error);
       }
     }
   });
-
-  // Clean up other test-related items in ./tmp (but preserve base dirs)
-  if (fs.existsSync('./tmp')) {
-    try {
-      const tmpContents = fs.readdirSync('./tmp');
-      for (const item of tmpContents) {
-        // Skip the persistent base directories
-        if (
-          item === 'test-projects' ||
-          item === 'test-integration' ||
-          item === 'test-state'
-        ) {
-          continue;
-        }
-
-        const itemPath = path.join('./tmp', item);
-        try {
-          // Only remove other test-related directories
-          if (item.startsWith('test-') || item.includes('test')) {
-            fs.rmSync(itemPath, { recursive: true, force: true });
-          }
-        } catch (error) {
-          console.warn(`Failed to clean up ${itemPath}:`, error);
-        }
-      }
-    } catch (error) {
-      console.warn('Failed to read ./tmp directory:', error);
-    }
-  }
 });
