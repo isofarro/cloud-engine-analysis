@@ -168,14 +168,39 @@ export class AnalysisRepo implements IAnalysisRepo {
 
   constructor(database: Database) {
     this.db = database;
-    this.initializeDatabase();
+    // Don't auto-initialize - let caller control when this happens
   }
 
   /**
    * Initialize database schema with performance-optimized indexes.
+   * Must be called after constructor.
    */
-  private initializeDatabase(): void {
-    this.db.exec(AnalysisRepo.SQL_QUERIES.INIT_SCHEMA);
+  async initializeSchema(): Promise<void> {
+    return new Promise<void>((resolve, reject) => {
+      this.db.exec(AnalysisRepo.SQL_QUERIES.INIT_SCHEMA, err => {
+        if (err) {
+          reject(new Error(`Schema initialization error: ${err.message}`));
+        } else {
+          resolve();
+        }
+      });
+    });
+  }
+
+  /**
+   * Public method to initialize database schema for a given database instance.
+   * This allows external code to initialize the schema without accessing private members.
+   */
+  public static async initializeSchema(database: Database): Promise<void> {
+    return new Promise<void>((resolve, reject) => {
+      database.exec(AnalysisRepo.SQL_QUERIES.INIT_SCHEMA, err => {
+        if (err) {
+          reject(new Error(`Schema initialization error: ${err.message}`));
+        } else {
+          resolve();
+        }
+      });
+    });
   }
 
   // Helper method to promisify database operations
