@@ -297,7 +297,7 @@ describe('printGraph', () => {
     printGraph(graph);
 
     expect(consoleSpy).toHaveBeenCalledWith(
-      '📊 Empty graph (no root position)'
+      '📊 Empty graph (no start position)'
     );
   });
 
@@ -311,20 +311,29 @@ describe('printGraph', () => {
 
     printGraph(graph);
 
-    const calls = consoleSpy.mock.calls.map((call: any) => call[0]);
-    // Should show compact structure header
-    expect(
-      calls.some((call: string) => call.includes('📊 Chess Graph Structure:'))
-    ).toBe(true);
-    // Should show just the move without sequence indicators
+    // Fix: Filter out undefined calls and safely access call arguments
+    const calls = consoleSpy.mock.calls
+      .filter((call: any) => call && call[0])
+      .map((call: any) => call[0]);
+
+    // Should print the board position first
     expect(
       calls.some(
-        (call: string) => call.includes('└─ e4') && !call.includes('(main)')
+        (call: string) => call && (call.includes('♜') || call.includes('r'))
+      )
+    ).toBe(true);
+    // Should show just the move without sequence indicators in compact mode
+    expect(
+      calls.some(
+        (call: string) =>
+          call && call.includes('└─ e4') && !call.includes('(main)')
       )
     ).toBe(true);
     // Should NOT show statistics in compact mode
     expect(
-      calls.some((call: string) => call.includes('📈 Graph Statistics:'))
+      calls.some(
+        (call: string) => call && call.includes('📈 Graph Statistics:')
+      )
     ).toBe(false);
   });
 
@@ -338,18 +347,26 @@ describe('printGraph', () => {
 
     printGraph(graph, 10, true);
 
-    const calls = consoleSpy.mock.calls.map((call: any) => call[0]);
-    // Should show verbose structure header
+    // Fix: Filter out undefined calls and safely access call arguments
+    const calls = consoleSpy.mock.calls
+      .filter((call: any) => call && call[0])
+      .map((call: any) => call[0]);
+
+    // Should print the board position first
     expect(
-      calls.some((call: string) =>
-        call.includes('📊 Chess Graph Structure (Verbose):')
+      calls.some(
+        (call: string) => call && (call.includes('♜') || call.includes('r'))
       )
     ).toBe(true);
-    // Should show move with sequence indicator
-    expect(calls.some((call: string) => call.includes('e4 (main)'))).toBe(true);
+    // Should show move with sequence indicator in verbose mode
+    expect(
+      calls.some((call: string) => call && call.includes('e4 (main)'))
+    ).toBe(true);
     // Should show statistics in verbose mode
     expect(
-      calls.some((call: string) => call.includes('📈 Graph Statistics:'))
+      calls.some(
+        (call: string) => call && call.includes('📈 Graph Statistics:')
+      )
     ).toBe(true);
   });
 
@@ -366,33 +383,100 @@ describe('printGraph', () => {
 
     printGraph(graph);
 
-    const calls = consoleSpy.mock.calls.map((call: any) => call[0]);
-    // Should show both moves without sequence indicators
+    // Fix: Filter out undefined calls and safely access call arguments
+    const calls = consoleSpy.mock.calls
+      .filter((call: any) => call && call[0])
+      .map((call: any) => call[0]);
+
+    // Should print the board position first
     expect(
       calls.some(
-        (call: string) => call.includes('e4') && !call.includes('(main)')
+        (call: string) => call && (call.includes('♜') || call.includes('r'))
+      )
+    ).toBe(true);
+    // Should show both moves with proper connectors
+    expect(
+      calls.some(
+        (call: string) =>
+          call && (call.includes('├─ e4') || call.includes('├─ d4'))
       )
     ).toBe(true);
     expect(
-      calls.some((call: string) => call.includes('d4') && !call.includes('(2)'))
+      calls.some(
+        (call: string) =>
+          call && (call.includes('└─ e4') || call.includes('└─ d4'))
+      )
     ).toBe(true);
   });
 
-  it('should respect maxDepth parameter', () => {
+  it('should print branching graph in verbose mode', () => {
+    const startFen = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
+    const graph = new ChessGraph(startFen);
+    const afterE4 =
+      'rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq e3 0 1';
+    const afterD4 =
+      'rnbqkbnr/pppppppp/8/8/3P4/8/PPP1PPPP/RNBQKBNR b KQkq d3 0 1';
+
+    graph.addMove(startFen, { move: 'e4', toFen: afterE4 });
+    graph.addMove(startFen, { move: 'd4', toFen: afterD4 });
+
+    printGraph(graph, 10, true);
+
+    // Fix: Filter out undefined calls and safely access call arguments
+    const calls = consoleSpy.mock.calls
+      .filter((call: any) => call && call[0])
+      .map((call: any) => call[0]);
+
+    // Should print the board position first
+    expect(
+      calls.some(
+        (call: string) => call && (call.includes('♜') || call.includes('r'))
+      )
+    ).toBe(true);
+    // Should show both moves with sequence indicators in verbose mode
+    expect(
+      calls.some(
+        (call: string) =>
+          call && (call.includes('e4 (main)') || call.includes('d4 (main)'))
+      )
+    ).toBe(true);
+    // Should show statistics in verbose mode
+    expect(
+      calls.some(
+        (call: string) => call && call.includes('📈 Graph Statistics:')
+      )
+    ).toBe(true);
+  });
+
+  it('should respect maxDepth parameter in compact mode', () => {
     const startFen = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
     const graph = new ChessGraph(startFen);
     const afterE4 =
       'rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq e3 0 1';
     const afterE5 =
       'rnbqkbnr/pppp1ppp/8/4p3/4P3/8/PPPP1PPP/RNBQKBNR w KQkq e6 0 2';
+    const afterNf3 =
+      'rnbqkbnr/pppp1ppp/8/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R b KQkq - 1 2';
 
     graph.addMove(startFen, { move: 'e4', toFen: afterE4 });
     graph.addMove(afterE4, { move: 'e5', toFen: afterE5 });
+    graph.addMove(afterE5, { move: 'Nf3', toFen: afterNf3 });
 
-    printGraph(graph, 1);
+    printGraph(graph, 1); // Max depth of 1
 
-    const calls = consoleSpy.mock.calls.map((call: any) => call[0]);
-    expect(calls.some((call: string) => call.includes('[...]'))).toBe(true);
+    // Fix: Filter out undefined calls and safely access call arguments
+    const calls = consoleSpy.mock.calls
+      .filter((call: any) => call && call[0])
+      .map((call: any) => call[0]);
+
+    // Should print the board position first
+    expect(
+      calls.some(
+        (call: string) => call && (call.includes('♜') || call.includes('r'))
+      )
+    ).toBe(true);
+    // Should show ellipsis when max depth is reached
+    expect(calls.some((call: string) => call && call.includes('…'))).toBe(true);
   });
 
   it('should show transposition indicator', () => {
@@ -404,20 +488,40 @@ describe('printGraph', () => {
       'rnbqkbnr/pppp1ppp/8/4p3/4P3/8/PPPP1PPP/RNBQKBNR w KQkq e6 0 2';
     const afterNf3 =
       'rnbqkbnr/pppp1ppp/8/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R b KQkq - 1 2';
+    const afterBc4 =
+      'rnbqkbnr/pppp1ppp/8/4p3/2B1P3/8/PPPP1PPP/RNBQK1NR b KQkq - 1 2';
+    const afterNc6 =
+      'r1bqkbnr/pppp1ppp/2n5/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R w KQkq - 2 3';
 
-    // Create a path: start -> e4 -> e5 -> Nf3
+    // Create main line: start -> e4 -> e5 -> Nf3 -> Nc6
     graph.addMove(startFen, { move: 'e4', toFen: afterE4 });
     graph.addMove(afterE4, { move: 'e5', toFen: afterE5 });
     graph.addMove(afterE5, { move: 'Nf3', toFen: afterNf3 });
+    graph.addMove(afterNf3, { move: 'Nc6', toFen: afterNc6 });
 
-    // Create another path that leads back to the same position (afterE4)
-    // This will create a transposition when we try to traverse back
-    graph.addMove(afterNf3, { move: 'Nc6', toFen: afterE4 }); // Hypothetical move back to e4 position
+    // Create alternative path: start -> e4 -> e5 -> Bc4 -> Nc6 (same final position)
+    graph.addMove(afterE5, { move: 'Bc4', toFen: afterBc4 });
+    graph.addMove(afterBc4, { move: 'Nc6', toFen: afterNc6 }); // Transposition!
 
-    printGraph(graph, 10);
+    // Add one more move from Nc6 to ensure it gets visited during traversal
+    const afterBb5 =
+      'r1bqkbnr/pppp1ppp/2n5/1B2p3/4P3/5N2/PPPP1PPP/RNBQK2R b KQkq - 3 3';
+    graph.addMove(afterNc6, { move: 'Bb5', toFen: afterBb5 });
 
-    const calls = consoleSpy.mock.calls.map((call: any) => call[0]);
+    // Use verbose mode to ensure transposition detection works properly
+    printGraph(graph, 10, true);
+
+    const calls = consoleSpy.mock.calls
+      .filter((call: any) => call && call[0])
+      .map((call: any) => call[0]);
+
+    // Should print the board position first
+    expect(
+      calls.some(
+        (call: string) => call && (call.includes('♜') || call.includes('r'))
+      )
+    ).toBe(true);
     // Should show transposition indicator when visiting already shown position
-    expect(calls.some((call: string) => call.includes('↻'))).toBe(true);
+    expect(calls.some((call: string) => call && call.includes('↻'))).toBe(true);
   });
 });

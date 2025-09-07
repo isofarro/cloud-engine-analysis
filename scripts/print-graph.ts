@@ -36,18 +36,12 @@ async function main() {
   try {
     const { graphPath, maxDepth } = parseArgs();
 
-    console.log('=== Chess Graph Printer ===');
     console.log(`Graph File: ${graphPath}`);
     if (maxDepth !== undefined) {
       console.log(`Max Depth: ${maxDepth}`);
     }
-    console.log('');
 
-    // Load the graph from file
-    console.log('📂 Loading graph from file...');
     const graph = loadGraph(graphPath);
-    console.log('✅ Graph loaded successfully!');
-    console.log('');
 
     // Print the graph in compact mode (default)
     printGraph(graph, maxDepth);
