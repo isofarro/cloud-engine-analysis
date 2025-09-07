@@ -10,6 +10,7 @@ import sqlite3 from 'sqlite3';
 import * as fs from 'fs';
 import * as path from 'path';
 import { StrategyContext, ProgressUpdate } from '../project/strategies/types';
+import { createAnalysisRepo } from '../analysis-store';
 
 /**
  * Primary Variation Explorer Task (Refactored)
@@ -172,16 +173,38 @@ export class PrimaryVariationExplorerTask {
   /**
    * Initialize the analysis repository
    */
-  private initializeAnalysisRepo(): IAnalysisRepo {
+  // Add proper database cleanup
+  private async initializeAnalysisRepo(): IAnalysisRepo {
     // Ensure database directory exists
     const dbDir = path.dirname(this.config.databasePath);
     if (!fs.existsSync(dbDir)) {
       fs.mkdirSync(dbDir, { recursive: true });
     }
 
-    // Initialize database and repository
-    const db = new sqlite3.Database(this.config.databasePath);
-    return new AnalysisRepo(db);
+    // Initialize database and repository with proper error handling
+    const db = new sqlite3.Database(this.config.databasePath, err => {
+      if (err) {
+        console.error('Database initialization error:', err);
+        throw err;
+      }
+    });
+
+    // Update the method:
+    return await createAnalysisRepo(db);
+  }
+
+  // Add cleanup method
+  async cleanup(): Promise<void> {
+    try {
+      if (
+        this.analysisRepo &&
+        typeof (this.analysisRepo as any).cleanup === 'function'
+      ) {
+        await (this.analysisRepo as any).cleanup();
+      }
+    } catch (error) {
+      console.warn('Cleanup error:', error);
+    }
   }
 
   /**

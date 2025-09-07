@@ -115,12 +115,19 @@ describe('PrimaryVariationExplorerTask', () => {
     // Clean up all created explorers and their database connections
     for (const explorer of createdExplorers) {
       try {
+        // Call cleanup method if available on explorer
+        if (typeof (explorer as any).cleanup === 'function') {
+          await (explorer as any).cleanup();
+        }
+
+        // Get the analysis repository and close it properly
         const repo = explorer.getAnalysisRepo();
-        if (repo && typeof (repo as any).cleanup === 'function') {
-          await (repo as any).cleanup();
+        if (repo && typeof (repo as any).close === 'function') {
+          await (repo as any).close();
         }
       } catch (error) {
-        // Ignore cleanup errors
+        // Ignore cleanup errors but log them
+        console.warn('Explorer cleanup error:', error);
       }
     }
 
@@ -128,20 +135,63 @@ describe('PrimaryVariationExplorerTask', () => {
     try {
       await mockAnalysisStoreService.cleanup();
     } catch (error) {
-      // Ignore cleanup errors
+      console.warn('Mock service cleanup error:', error);
     }
 
-    // Wait a bit for database connections to close
-    await new Promise(resolve => setTimeout(resolve, 100));
+    // Extended wait for database connections to close
+    await new Promise(resolve => setTimeout(resolve, 500));
 
-    // Clean up test files
+    // Force close any remaining database connections with better error handling
+    try {
+      if (fs.existsSync(tempDir)) {
+        const dbFiles = fs.readdirSync(tempDir).filter(f => f.endsWith('.db'));
+        for (const dbFile of dbFiles) {
+          const dbPath = path.join(tempDir, dbFile);
+          // Try to delete database files with more retries
+          for (let i = 0; i < 5; i++) {
+            try {
+              if (fs.existsSync(dbPath)) {
+                fs.unlinkSync(dbPath);
+              }
+              break;
+            } catch (error: any) {
+              if (i === 4) {
+                console.warn(
+                  `Failed to delete database file ${dbFile} after 5 attempts:`,
+                  error.message
+                );
+              } else {
+                await new Promise(resolve => setTimeout(resolve, 200));
+              }
+            }
+          }
+        }
+      }
+    } catch (error: any) {
+      console.warn('Database file cleanup error:', error.message);
+    }
+
+    // Clean up test files with retries
     if (fs.existsSync(tempDir)) {
-      try {
-        fs.rmSync(tempDir, { recursive: true, force: true });
-      } catch (error) {
-        // Ignore cleanup errors
+      for (let i = 0; i < 5; i++) {
+        try {
+          fs.rmSync(tempDir, { recursive: true, force: true });
+          break;
+        } catch (error: any) {
+          if (i === 4) {
+            console.warn(
+              'Failed to cleanup test directory after 5 attempts:',
+              error.message
+            );
+          } else {
+            await new Promise(resolve => setTimeout(resolve, 200));
+          }
+        }
       }
     }
+
+    // Clear the array
+    createdExplorers = [];
   });
 
   describe('constructor', () => {
