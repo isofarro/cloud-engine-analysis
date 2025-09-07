@@ -15,7 +15,8 @@
     "test:integration": "vitest run --config vitest.integration.config.ts",
     "lint": "eslint src/**/*.ts",
     "lint:fix": "eslint src/**/*.ts --fix",
-    "format": "prettier --write 'src/**/*.ts' 'examples/**/*.ts'"
+    "format": "prettier --write 'src/**/*.ts' 'examples/**/*.ts'",
+    "project": "tsx src/cli/bin.ts"
   },
   "dependencies": {
     "@types/restify": "^8.5.12",
