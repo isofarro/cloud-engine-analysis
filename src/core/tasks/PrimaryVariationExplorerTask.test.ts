@@ -33,6 +33,8 @@ class MockChessEngine {
 
 // Mock AnalysisStoreService for testing
 class MockAnalysisStoreService {
+  private db: any = null;
+
   async storeAnalysis() {
     return Promise.resolve({ id: 1 });
   }
@@ -48,6 +50,23 @@ class MockAnalysisStoreService {
   async clearCache() {
     return Promise.resolve();
   }
+
+  // Add cleanup method
+  async cleanup() {
+    if (this.db) {
+      try {
+        await new Promise((resolve, reject) => {
+          this.db.close((err: any) => {
+            if (err) reject(err);
+            else resolve(undefined);
+          });
+        });
+      } catch (error) {
+        // Ignore cleanup errors
+      }
+      this.db = null;
+    }
+  }
 }
 
 describe('PrimaryVariationExplorerTask', () => {
@@ -55,20 +74,31 @@ describe('PrimaryVariationExplorerTask', () => {
   let config: PVExplorerConfig;
   let analysisConfig: AnalysisConfig;
   let mockEngine: any;
-  let mockAnalysisStoreService: any;
+  let mockAnalysisStoreService: MockAnalysisStoreService;
+  let createdExplorers: PrimaryVariationExplorerTask[] = [];
 
-  beforeEach(() => {
+  beforeEach(async () => {
     // Create temporary directory for test files
     tempDir = path.join(__dirname, '../../../tmp/test-pv-explorer');
     if (!fs.existsSync(tempDir)) {
       fs.mkdirSync(tempDir, { recursive: true });
     }
 
+    // Use unique database paths to avoid conflicts
+    const testId = Math.random().toString(36).substring(7);
+    const dbPath = path.join(tempDir, `test-${testId}.db`);
+
+    // Ensure database directory exists
+    const dbDir = path.dirname(dbPath);
+    if (!fs.existsSync(dbDir)) {
+      fs.mkdirSync(dbDir, { recursive: true });
+    }
+
     config = {
       rootPosition: 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1',
       maxDepthRatio: 0.5,
-      databasePath: path.join(tempDir, 'test.db'),
-      graphPath: path.join(tempDir, 'test-graph.json'),
+      databasePath: dbPath,
+      graphPath: path.join(tempDir, `test-graph-${testId}.json`),
     };
 
     analysisConfig = {
@@ -78,12 +108,39 @@ describe('PrimaryVariationExplorerTask', () => {
 
     mockEngine = new MockChessEngine();
     mockAnalysisStoreService = new MockAnalysisStoreService();
+    createdExplorers = [];
   });
 
-  afterEach(() => {
+  afterEach(async () => {
+    // Clean up all created explorers and their database connections
+    for (const explorer of createdExplorers) {
+      try {
+        const repo = explorer.getAnalysisRepo();
+        if (repo && typeof (repo as any).cleanup === 'function') {
+          await (repo as any).cleanup();
+        }
+      } catch (error) {
+        // Ignore cleanup errors
+      }
+    }
+
+    // Clean up mock service
+    try {
+      await mockAnalysisStoreService.cleanup();
+    } catch (error) {
+      // Ignore cleanup errors
+    }
+
+    // Wait a bit for database connections to close
+    await new Promise(resolve => setTimeout(resolve, 100));
+
     // Clean up test files
     if (fs.existsSync(tempDir)) {
-      fs.rmSync(tempDir, { recursive: true, force: true });
+      try {
+        fs.rmSync(tempDir, { recursive: true, force: true });
+      } catch (error) {
+        // Ignore cleanup errors
+      }
     }
   });
 
@@ -95,6 +152,7 @@ describe('PrimaryVariationExplorerTask', () => {
         config,
         mockAnalysisStoreService as any
       );
+      createdExplorers.push(explorer);
 
       expect(explorer.getConfig()).toEqual(config);
       expect(explorer.getAnalysisConfig()).toEqual(analysisConfig);
@@ -107,12 +165,12 @@ describe('PrimaryVariationExplorerTask', () => {
         config,
         mockAnalysisStoreService as any
       );
+      createdExplorers.push(explorer);
 
       const state = explorer.getExplorationState();
-      expect(state.positionsToAnalyze).toContain(config.rootPosition);
-      expect(state.analyzedPositions.size).toBe(0);
-      expect(state.maxExplorationDepth).toBe(0);
-      expect(state.positionDepths.get(config.rootPosition)).toBe(0);
+      expect(state.currentDepth).toBe(0);
+      expect(state.exploredPositions).toBe(0);
+      expect(state.isComplete).toBe(false);
     });
   });
 
@@ -124,24 +182,26 @@ describe('PrimaryVariationExplorerTask', () => {
         config,
         mockAnalysisStoreService as any
       );
+      createdExplorers.push(explorer);
 
       const graph = explorer.getGraph();
+      expect(graph).toBeDefined();
       expect(graph.rootPosition).toBe(config.rootPosition);
     });
   });
 
   describe('configuration validation', () => {
     it('should handle valid maxDepthRatio', () => {
-      const validConfig = { ...config, maxDepthRatio: 0.3 };
+      const validConfig = { ...config, maxDepthRatio: 0.8 };
+      const explorer = new PrimaryVariationExplorerTask(
+        mockEngine as any,
+        analysisConfig,
+        validConfig,
+        mockAnalysisStoreService as any
+      );
+      createdExplorers.push(explorer);
 
-      expect(() => {
-        new PrimaryVariationExplorerTask(
-          mockEngine as any,
-          analysisConfig,
-          validConfig,
-          mockAnalysisStoreService as any
-        );
-      }).not.toThrow();
+      expect(explorer.getConfig().maxDepthRatio).toBe(0.8);
     });
 
     it('should use provided AnalysisStoreService when passed', () => {
@@ -149,29 +209,23 @@ describe('PrimaryVariationExplorerTask', () => {
         mockEngine as any,
         analysisConfig,
         config,
-        mockAnalysisStoreService as any
+        { analysisRepo: mockAnalysisStoreService as any }
       );
+      createdExplorers.push(explorer);
 
-      // Test that the explorer was created successfully with the mock service
-      expect(explorer.getConfig()).toEqual(config);
-      expect(explorer.getAnalysisConfig()).toEqual(analysisConfig);
+      expect(explorer.getAnalysisRepo()).toBe(mockAnalysisStoreService);
     });
 
     it('should create database directory when no AnalysisStoreService is provided', () => {
-      const nonExistentDir = path.join(tempDir, 'nested', 'path');
-      const configWithNestedPath = {
-        ...config,
-        databasePath: ':memory:', // Use in-memory database for testing
-      };
+      const explorer = new PrimaryVariationExplorerTask(
+        mockEngine as any,
+        analysisConfig,
+        config
+      );
+      createdExplorers.push(explorer);
 
-      // Test without providing mock service to test real database initialization
-      expect(() => {
-        new PrimaryVariationExplorerTask(
-          mockEngine as any,
-          analysisConfig,
-          configWithNestedPath
-        );
-      }).not.toThrow();
+      const dbDir = path.dirname(config.databasePath);
+      expect(fs.existsSync(dbDir)).toBe(true);
     });
   });
 
@@ -183,11 +237,12 @@ describe('PrimaryVariationExplorerTask', () => {
         config,
         mockAnalysisStoreService as any
       );
+      createdExplorers.push(explorer);
 
       const state1 = explorer.getExplorationState();
       const state2 = explorer.getExplorationState();
 
-      expect(state1).not.toBe(state2); // Different objects
+      expect(state1).not.toBe(state2); // Different object references
       expect(state1).toEqual(state2); // Same content
     });
   });

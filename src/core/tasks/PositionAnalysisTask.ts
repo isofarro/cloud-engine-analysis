@@ -27,8 +27,7 @@ export class PositionAnalysisTask {
    */
   private async execute(fen: string): Promise<AnalysisResult> {
     // Ensure engine is connected
-    const client = (this.engine as any).client;
-    if (client.getStatus() === 'disconnected') {
+    if (this.engine.getStatus() === 'disconnected') {
       await this.engine.connect();
     }
 
@@ -59,10 +58,10 @@ export class PositionAnalysisTask {
     const client = (this.engine as any).client;
 
     // Wait for engine to be ready (connected and idle)
-    if (client.getStatus() !== 'idle') {
+    if (this.engine.getStatus() !== 'idle') {
       await new Promise<void>(resolve => {
         const checkStatus = () => {
-          const status = client.getStatus();
+          const status = this.engine.getStatus();
           if (status === 'idle') {
             resolve();
           } else if (status === 'disconnected') {
@@ -76,7 +75,7 @@ export class PositionAnalysisTask {
     }
 
     return new Promise((resolve, reject) => {
-      if (client.getStatus() !== 'idle') {
+      if (this.engine.getStatus() !== 'idle') {
         reject(new Error('Engine is not idle'));
         return;
       }

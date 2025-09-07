@@ -100,8 +100,17 @@ export class ProjectManager implements IProjectManager {
     const repo = new AnalysisRepo(db);
     const analysisStore = new AnalysisStoreService(repo);
 
-    // Close database connection after initialization
-    db.close();
+    // Properly close database connection after initialization
+    await new Promise<void>((resolve, reject) => {
+      db.close(err => {
+        if (err) {
+          console.warn('Error closing database during project creation:', err);
+          reject(err);
+        } else {
+          resolve();
+        }
+      });
+    });
 
     // Return project instance
     return {
@@ -204,6 +213,30 @@ export class ProjectManager implements IProjectManager {
     if (!(await this.isValidProject(resolvedPath))) {
       throw new Error(`Invalid project directory: ${resolvedPath}`);
     }
+
+    // Ensure any active database connections are closed
+    const databasePath = path.join(resolvedPath, 'analysis.db');
+    if (fs.existsSync(databasePath)) {
+      try {
+        // Create a temporary connection to ensure database is properly closed
+        const tempDb = new sqlite3.Database(databasePath);
+        await new Promise<void>((resolve, reject) => {
+          tempDb.close(err => {
+            if (err && !err.message.includes('SQLITE_MISUSE')) {
+              reject(err);
+            } else {
+              resolve();
+            }
+          });
+        });
+      } catch (error) {
+        // Ignore connection errors during cleanup
+        console.warn('Warning during database cleanup:', error);
+      }
+    }
+
+    // Small delay to ensure file system operations complete
+    await new Promise(resolve => setTimeout(resolve, 50));
 
     // Remove the entire project directory
     fs.rmSync(resolvedPath, { recursive: true, force: true });

@@ -1,15 +1,11 @@
 import { ChessEngine, AnalysisConfig } from '../engine/ChessEngine';
-import { AnalysisResult } from '../engine/types';
 import { ChessGraph } from '../graph/ChessGraph';
 import { saveGraph, loadGraph } from '../utils/graph';
-import { AnalysisStoreService } from '../analysis-store/AnalysisStoreService';
 import { AnalysisRepo } from '../analysis-store/AnalysisRepo';
 import { IAnalysisRepo } from '../analysis-store/IAnalysisRepo';
 import { PVExplorerConfig, ExplorationState } from './types/pv-explorer';
-import { FenString } from '../types';
 import { PVExplorationStrategy } from '../project/strategies/PVExplorationStrategy';
 import { PVExplorationConfig } from '../project/strategies/types';
-import { AnalysisContext } from '../project/types';
 import sqlite3 from 'sqlite3';
 import * as fs from 'fs';
 import * as path from 'path';
@@ -73,6 +69,9 @@ export class PrimaryVariationExplorerTask {
       analyzedPositions: new Set(),
       maxExplorationDepth: 0,
       positionDepths: new Map([[config.rootPosition, 0]]),
+      currentDepth: 0,
+      exploredPositions: 0,
+      isComplete: false,
     };
   }
 
@@ -227,6 +226,9 @@ export class PrimaryVariationExplorerTask {
         analyzedPositions: strategyState.analyzedPositions,
         maxExplorationDepth: strategyState.maxDepth,
         positionDepths: strategyState.positionDepths,
+        currentDepth: strategyState.currentDepth,
+        exploredPositions: strategyState.stats.totalAnalyzed,
+        isComplete: strategyState.positionsToAnalyze.length === 0,
       };
     }
 

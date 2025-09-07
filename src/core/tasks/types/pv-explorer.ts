@@ -35,4 +35,13 @@ export interface ExplorationState {
 
   /** Current depth from root for each position */
   positionDepths: Map<FenString, number>;
+
+  /** Current exploration depth */
+  currentDepth: number;
+
+  /** Number of positions explored so far */
+  exploredPositions: number;
+
+  /** Whether the exploration is complete */
+  isComplete: boolean;
 }

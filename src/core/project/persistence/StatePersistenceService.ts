@@ -34,6 +34,9 @@ export class StatePersistenceService {
     config: any,
     metadata: any = {}
   ): Promise<void> {
+    // Ensure directory exists before saving
+    await this.ensureStateDirectory();
+
     const serializableState: SerializableState = {
       sessionId,
       strategyName,
@@ -69,10 +72,34 @@ export class StatePersistenceService {
    * Load analysis state from disk
    */
   async loadState(sessionId: string): Promise<StateRestorationResult> {
-    const filename = this.getStateFilename(sessionId);
-    const filepath = path.join(this.config.stateDirectory, filename);
-
     try {
+      // Find the most recent state file for this sessionId
+      const files = await fs.readdir(this.config.stateDirectory);
+      const stateFiles = files
+        .filter(f => f.startsWith(`${sessionId}-`) && f.endsWith('.state.json'))
+        .sort((a, b) => {
+          // Sort by timestamp in filename (most recent first)
+          const timestampA = a.substring(
+            sessionId.length + 1,
+            a.length - '.state.json'.length
+          );
+          const timestampB = b.substring(
+            sessionId.length + 1,
+            b.length - '.state.json'.length
+          );
+          return timestampB.localeCompare(timestampA);
+        });
+
+      if (stateFiles.length === 0) {
+        return {
+          success: false,
+          error: `No saved state found for session: ${sessionId}`,
+        };
+      }
+
+      const filename = stateFiles[0]; // Most recent file
+      const filepath = path.join(this.config.stateDirectory, filename);
+
       const data = await fs.readFile(filepath, 'utf8');
       const state: SerializableState = JSON.parse(data);
 

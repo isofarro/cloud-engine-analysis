@@ -467,6 +467,44 @@ export class AnalysisRepo implements IAnalysisRepo {
   }
 
   // Performance and maintenance
+  /**
+   * Close the database connection and clear all caches
+   */
+  async close(): Promise<void> {
+    // Clear all caches
+    this.engineCache.clear();
+    this.positionCache.clear();
+    this.analysisCache.clear();
+
+    // Close database connection with better error handling
+    return new Promise<void>((resolve, reject) => {
+      if (!this.db) {
+        resolve();
+        return;
+      }
+
+      this.db.close(err => {
+        if (err) {
+          // Don't reject on certain expected errors during cleanup
+          if (
+            err.message.includes('SQLITE_MISUSE') ||
+            err.message.includes('SQLITE_READONLY')
+          ) {
+            console.warn(
+              'Database close warning (expected during cleanup):',
+              err.message
+            );
+            resolve();
+          } else {
+            reject(err);
+          }
+        } else {
+          resolve();
+        }
+      });
+    });
+  }
+
   async clearCache(): Promise<void> {
     this.engineCache.clear();
     this.positionCache.clear();
