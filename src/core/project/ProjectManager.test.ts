@@ -10,26 +10,26 @@ const TEST_BASE_DIR = './tmp/test-projects';
 
 describe('ProjectManager', () => {
   let projectManager: ProjectManager;
-  let testId: string;
   let testDir: string;
 
-  beforeEach(async () => {
-    // Each test gets its own unique subdirectory under the persistent base
-    testId = `${Date.now()}-${process.pid}-${Math.random().toString(36).substring(2, 15)}`;
-    testDir = path.join(TEST_BASE_DIR, testId);
+  beforeEach(() => {
+    // Create unique test directory for each test
+    testDir = path.join(
+      TEST_BASE_DIR,
+      `${Date.now()}-${process.pid}-${Math.random().toString(36).substring(2)}`
+    );
 
-    projectManager = new ProjectManager();
-
-    // Ensure the persistent base directory exists
+    // Ensure the test base directory exists
     if (!fs.existsSync(TEST_BASE_DIR)) {
       fs.mkdirSync(TEST_BASE_DIR, { recursive: true });
     }
 
-    // Clean up only this test's specific directory
-    await cleanupTestDirectory(testDir);
-    fs.mkdirSync(testDir, { recursive: true });
+    // Ensure the specific test directory exists
+    if (!fs.existsSync(testDir)) {
+      fs.mkdirSync(testDir, { recursive: true });
+    }
 
-    await new Promise(resolve => setTimeout(resolve, 100));
+    projectManager = new ProjectManager(testDir);
   });
 
   afterEach(async () => {
@@ -118,9 +118,11 @@ describe('ProjectManager', () => {
 
   describe('create', () => {
     it('should create a new project with default configuration', async () => {
+      const projectPath = path.join(testDir, 'test-project');
+
       const config: CreateProjectConfig = {
         name: 'test-project',
-        projectPath: path.join(testDir, 'test-project'),
+        projectPath: projectPath,
       };
 
       const project = await projectManager.create(config);
@@ -132,6 +134,51 @@ describe('ProjectManager', () => {
       expect(fs.existsSync(project.projectPath)).toBe(true);
       expect(fs.existsSync(project.graphPath)).toBe(true);
       expect(fs.existsSync(project.databasePath)).toBe(true);
+    });
+
+    it('should throw error if project already exists', async () => {
+      const projectPath = path.join(testDir, 'duplicate-project');
+
+      // First, create the project directory and required files
+      fs.mkdirSync(projectPath, { recursive: true });
+
+      // Create the required files to make it a valid project
+      const projectJsonPath = path.join(projectPath, 'project.json');
+      const graphJsonPath = path.join(projectPath, 'graph.json');
+      const analysisDbPath = path.join(projectPath, 'analysis.db');
+
+      fs.writeFileSync(
+        projectJsonPath,
+        JSON.stringify({
+          id: 'test-id',
+          name: 'duplicate-project',
+          rootPosition:
+            'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1',
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+          config: {},
+        })
+      );
+
+      fs.writeFileSync(
+        graphJsonPath,
+        JSON.stringify({
+          rootPosition:
+            'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1',
+          positions: {},
+          moves: {},
+        })
+      );
+      fs.writeFileSync(analysisDbPath, ''); // Create empty file
+
+      const config: CreateProjectConfig = {
+        name: 'duplicate-project',
+        projectPath: projectPath,
+      };
+
+      await expect(projectManager.create(config)).rejects.toThrow(
+        `Project already exists at: ${projectPath}`
+      );
     });
 
     it('should create project with custom root position', async () => {

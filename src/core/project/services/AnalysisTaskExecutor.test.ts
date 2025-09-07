@@ -10,7 +10,10 @@ import {
   AnalysisResult,
 } from '../types';
 import { ChessGraph } from '../../graph/ChessGraph';
-import { AnalysisRepo, createAnalysisRepo } from '../../analysis-store';
+import {
+  AnalysisStoreService,
+  createAnalysisStoreService,
+} from '../../analysis-store';
 import sqlite3 from 'sqlite3';
 
 // Mock strategy for testing
@@ -79,7 +82,7 @@ describe('AnalysisTaskExecutor', () => {
   beforeEach(async () => {
     const graph = new ChessGraph();
     const db = new sqlite3.Database(':memory:');
-    const analysisRepo = await createAnalysisRepo(db);
+    const analysisStore = await createAnalysisStoreService(db);
 
     mockStrategy = new MockAnalysisStrategy();
     failingStrategy = new FailingMockStrategy();
@@ -106,7 +109,7 @@ describe('AnalysisTaskExecutor', () => {
 
     dependencies = {
       graph,
-      analysisRepo,
+      analysisStore,
       strategyRegistry,
       projectManager,
     };
@@ -125,7 +128,7 @@ describe('AnalysisTaskExecutor', () => {
       const context = {
         position: 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1',
         graph: dependencies.graph,
-        analysisRepo: dependencies.analysisRepo,
+        analysisStore: dependencies.analysisStore,
         config: { depth: 15 },
         project: {
           id: 'test',
@@ -156,7 +159,7 @@ describe('AnalysisTaskExecutor', () => {
       const context = {
         position: 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1',
         graph: dependencies.graph,
-        analysisRepo: dependencies.analysisRepo,
+        analysisStore: dependencies.analysisStore,
         config: { depth: 15 },
         project: {
           id: 'test',
@@ -198,7 +201,7 @@ describe('AnalysisTaskExecutor', () => {
       const context = {
         position: 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1',
         graph: dependencies.graph,
-        analysisRepo: dependencies.analysisRepo,
+        analysisStore: dependencies.analysisStore,
         config: { depth: 15 },
         project: {
           id: 'test',

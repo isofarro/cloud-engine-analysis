@@ -1,6 +1,6 @@
 import { FenString } from '../types';
 import { ChessGraph } from '../graph/ChessGraph';
-import { IAnalysisRepo } from '../analysis-store/IAnalysisRepo';
+import { AnalysisStoreService } from '../analysis-store/AnalysisStoreService';
 import { AnalysisResult } from '../engine/types';
 
 // Re-export AnalysisResult so other files can import it from this module
@@ -91,14 +91,14 @@ export interface AnalysisStrategy {
  * Context provided to analysis strategies
  */
 export interface AnalysisContext {
-  /** Target position to analyze */
+  /** Current position being analyzed */
   position: FenString;
 
   /** Chess graph for position relationships */
   graph: ChessGraph;
 
-  /** Analysis repository for storing/retrieving results */
-  analysisRepo: IAnalysisRepo;
+  /** Analysis store service for storing/retrieving results */
+  analysisStore: AnalysisStoreService;
 
   /** Analysis configuration */
   config: AnalysisConfig;
@@ -151,8 +151,8 @@ export interface AnalysisDependencies {
   /** Chess graph instance */
   graph: ChessGraph;
 
-  /** Analysis repository instance */
-  analysisRepo: IAnalysisRepo;
+  /** Analysis store service instance */
+  analysisStore: AnalysisStoreService;
 
   /** Analysis strategy registry */
   strategyRegistry: AnalysisStrategyRegistry;

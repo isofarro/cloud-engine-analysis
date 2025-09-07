@@ -1,4 +1,5 @@
 import { IAnalysisRepo } from '../../analysis-store/IAnalysisRepo';
+import { AnalysisStoreService } from '../../analysis-store/AnalysisStoreService';
 import { FenString } from '../../types';
 import { AnalysisWithDetails } from '../../analysis-store/types';
 
@@ -69,8 +70,15 @@ export class AnalysisChecker {
   private repo: IAnalysisRepo;
   private config: AnalysisCheckerConfig;
 
-  constructor(repo: IAnalysisRepo, config: AnalysisCheckerConfig = {}) {
-    this.repo = repo;
+  constructor(
+    repoOrService: IAnalysisRepo | AnalysisStoreService,
+    config: AnalysisCheckerConfig = {}
+  ) {
+    // Extract the repository from AnalysisStoreService if needed
+    this.repo =
+      repoOrService instanceof AnalysisStoreService
+        ? repoOrService.getRepository()
+        : repoOrService;
     this.config = {
       minDepth: 10,
       maxAgeDays: 30,

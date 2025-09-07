@@ -2,7 +2,6 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { ChessGraph } from '../graph/ChessGraph';
 import { AnalysisStoreService } from '../analysis-store/AnalysisStoreService';
-import { AnalysisRepo } from '../analysis-store/AnalysisRepo';
 import { loadGraph, saveGraph } from '../utils/graph';
 import { FenString } from '../types';
 import {
@@ -12,7 +11,7 @@ import {
   ProjectConfig,
 } from './types';
 import sqlite3 from 'sqlite3';
-import { createAnalysisRepo } from '../analysis-store';
+import { createAnalysisStoreService } from '../analysis-store';
 
 /**
  * Default starting position FEN
@@ -144,13 +143,9 @@ export class ProjectManager implements IProjectManager {
 
     // Create analysis database with proper schema initialization
     const databasePath = path.join(projectPath, 'analysis.db');
-    // In ProjectManager.create() around line 140
     try {
-      // Create database and initialize schema properly
       const db = new sqlite3.Database(databasePath);
-
-      // Replace both instances:
-      const repo = await createAnalysisRepo(db);
+      await createAnalysisStoreService(db);
 
       // Wait for database operations to complete using serialize
       await new Promise<void>((resolve, reject) => {
@@ -438,20 +433,18 @@ export class ProjectManager implements IProjectManager {
    * Get analysis store service for project
    */
   async getAnalysisStore(project: ChessProject): Promise<AnalysisStoreService> {
+    const dbPath = project.databasePath;
+
     // Ensure database directory exists
-    const dbDir = path.dirname(project.databasePath);
-    if (!fs.existsSync(dbDir)) {
-      fs.mkdirSync(dbDir, { recursive: true });
-    }
+    const dbDir = path.dirname(dbPath);
+    await fs.promises.mkdir(dbDir, { recursive: true });
 
-    // Create SQLite database instance
-    const db = new sqlite3.Database(project.databasePath);
+    // Create database connection
+    const db = new sqlite3.Database(dbPath);
 
-    // Create repository with database
-    const repo = new AnalysisRepo(db);
+    // Use factory to create fully initialized service
+    const analysisStore = await createAnalysisStoreService(db);
 
-    // Create and return service
-    const analysisStore = new AnalysisStoreService(repo);
     return analysisStore;
   }
 
@@ -459,11 +452,7 @@ export class ProjectManager implements IProjectManager {
    * Close analysis store service (cleanup database connections)
    */
   async closeAnalysisStore(analysisStore: AnalysisStoreService): Promise<void> {
-    // Get the underlying repository and close database connection
-    const repo = analysisStore.getRepository() as AnalysisRepo;
-    if (repo && typeof (repo as any).close === 'function') {
-      await (repo as any).close();
-    }
+    await analysisStore.close();
   }
 
   /**

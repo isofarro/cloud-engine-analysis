@@ -1,75 +1,77 @@
 import { ChessEngine, AnalysisConfig } from '../engine/ChessEngine';
 import { ChessGraph } from '../graph/ChessGraph';
 import { saveGraph, loadGraph } from '../utils/graph';
-import { AnalysisRepo } from '../analysis-store/AnalysisRepo';
-import { IAnalysisRepo } from '../analysis-store/IAnalysisRepo';
+import { AnalysisStoreService } from '../analysis-store';
 import { PVExplorerConfig, ExplorationState } from './types/pv-explorer';
 import { PVExplorationStrategy } from '../project/strategies/PVExplorationStrategy';
 import { PVExplorationConfig } from '../project/strategies/types';
-import sqlite3 from 'sqlite3';
 import * as fs from 'fs';
 import * as path from 'path';
 import { StrategyContext, ProgressUpdate } from '../project/strategies/types';
-import { createAnalysisRepo } from '../analysis-store';
+import { FenString } from '../types';
+import { ChessProject } from '../project/types'; // Add this import
+
+/**
+ * Dependencies for PrimaryVariationExplorerTask
+ */
+export interface PVExplorerDependencies {
+  graph?: ChessGraph;
+  strategy?: PVExplorationStrategy;
+  analysisStore?: AnalysisStoreService;
+}
 
 /**
  * Primary Variation Explorer Task (Refactored)
  *
  * Now uses dependency injection and delegates core exploration logic
  * to PVExplorationStrategy for better modularity and testability.
- * Maintains backward compatibility with existing usage patterns.
+ * Uses AnalysisStoreService instead of direct repository access.
  */
 export class PrimaryVariationExplorerTask {
   private engine: ChessEngine;
   private analysisConfig: AnalysisConfig;
   private config: PVExplorerConfig;
   private graph: ChessGraph;
-  private analysisRepo: IAnalysisRepo;
+  private analysisStore: AnalysisStoreService;
   private strategy: PVExplorationStrategy;
   private state: ExplorationState;
+  private project: ChessProject; // Add project property
 
   constructor(
     engine: ChessEngine,
     analysisConfig: AnalysisConfig,
     config: PVExplorerConfig,
-    dependencies?: {
-      graph?: ChessGraph;
-      analysisRepo?: IAnalysisRepo;
-      strategy?: PVExplorationStrategy;
-    }
+    project: ChessProject, // Add project parameter
+    dependencies?: PVExplorerDependencies
   ) {
     this.engine = engine;
     this.analysisConfig = analysisConfig;
     this.config = config;
+    this.project = project; // Store project
 
     // Initialize dependencies with fallbacks for backward compatibility
     this.graph = dependencies?.graph || this.initializeGraph();
-    this.analysisRepo =
-      dependencies?.analysisRepo || this.initializeAnalysisRepo();
+    this.analysisStore =
+      dependencies?.analysisStore || this.getDefaultAnalysisStore();
 
-    // Create strategy if not provided
-    if (dependencies?.strategy) {
-      this.strategy = dependencies.strategy;
-    } else {
-      const strategyConfig: PVExplorationConfig = {
-        maxDepthRatio: config.maxDepthRatio,
-        maxPositions: config.maxPositions,
-        exploreAlternatives: false, // Default for backward compatibility
-        alternativeThreshold: 50, // Default threshold in centipawns
-      };
-      this.strategy = new PVExplorationStrategy(
-        engine,
-        analysisConfig,
-        strategyConfig
-      );
-    }
+    // Create strategy config from PVExplorerConfig
+    const strategyConfig: PVExplorationConfig = {
+      maxDepthRatio: this.config.maxDepthRatio,
+      maxPositions: this.config.maxPositions,
+      exploreAlternatives: false, // Default value
+      alternativeThreshold: 30, // Default value
+    };
 
-    // Initialize exploration state for backward compatibility
+    this.strategy =
+      dependencies?.strategy ||
+      new PVExplorationStrategy(engine, analysisConfig, strategyConfig);
+
+    // Initialize state to match ExplorationState interface
     this.state = {
-      positionsToAnalyze: [config.rootPosition],
-      analyzedPositions: new Set(),
+      positionsToAnalyze: [this.config.rootPosition],
+      analyzedPositions: new Set<FenString>(),
       maxExplorationDepth: 0,
-      positionDepths: new Map([[config.rootPosition, 0]]),
+      positionDepths: new Map<FenString, number>(),
       currentDepth: 0,
       exploredPositions: 0,
       isComplete: false,
@@ -77,62 +79,36 @@ export class PrimaryVariationExplorerTask {
   }
 
   /**
-   * Main exploration method - now delegates to strategy
+   * Execute the primary variation exploration
    */
   async explore(): Promise<void> {
-    console.log(
-      `Starting Primary Variation exploration from: ${this.config.rootPosition}`
-    );
-    console.log(
-      `Analysis config: depth=${this.analysisConfig.depth}, time=${this.analysisConfig.time}, multiPV=${this.analysisConfig.multiPV}`
-    );
-    console.log(`Max depth ratio: ${this.config.maxDepthRatio}`);
+    // Update state to indicate exploration is running
+    this.state.isComplete = false;
 
     try {
-      // Create strategy context (not just AnalysisContext)
       const context: StrategyContext = {
         position: this.config.rootPosition,
         graph: this.graph,
-        analysisRepo: this.analysisRepo,
-        config: {
-          depth: this.analysisConfig.depth,
-          timeLimit: this.analysisConfig.time,
-          multiPv: this.analysisConfig.multiPV,
-          engineOptions: {},
-        },
-        project: {
-          id: 'legacy-pv-explorer',
-          name: 'Legacy PV Explorer',
-          projectPath: path.dirname(this.config.graphPath),
-          rootPosition: this.config.rootPosition,
-          graphPath: this.config.graphPath,
-          databasePath: this.config.databasePath,
-          createdAt: new Date(),
-          updatedAt: new Date(),
-          config: {},
-        },
-        metadata: {
-          legacyMode: true,
-          originalConfig: this.config,
-        },
-        state: { pvExploration: undefined },
-        onProgress: (progress: ProgressUpdate) => {
-          console.log(
-            `📊 Progress: ${progress.percentage.toFixed(1)}% - ${progress.operation}`
-          );
+        analysisStore: this.analysisStore,
+        config: this.analysisConfig,
+        project: this.project, // Use the stored project
+        onProgress: (update: ProgressUpdate) => {
+          this.handleProgressUpdate(update);
         },
       };
 
-      // Execute strategy with properly typed context
+      // Execute the strategy
       const results = await this.strategy.execute(context);
 
-      // Save graph after exploration
+      // Mark exploration as complete
+      this.state.isComplete = true;
+
+      // Save the graph
       this.saveGraph();
 
-      console.log('\n✅ Primary Variation exploration completed successfully!');
-      console.log(`📊 Total analysis results: ${results.length}`);
-      console.log(`📁 ChessGraph saved to: ${this.config.graphPath}`);
-      console.log(`🗄️  Analysis database: ${this.config.databasePath}`);
+      console.log(
+        `✅ Exploration completed with ${results.length} analysis results`
+      );
     } catch (error) {
       console.error('❌ Error during exploration:', error);
       throw error;
@@ -140,157 +116,134 @@ export class PrimaryVariationExplorerTask {
   }
 
   /**
-   * Initialize the ChessGraph - either load from existing file or create new
+   * Initialize graph with fallback behavior
    */
   private initializeGraph(): ChessGraph {
+    const graph = new ChessGraph();
+
+    // Try to load existing graph if path is provided
     if (this.config.graphPath && fs.existsSync(this.config.graphPath)) {
       try {
-        console.log(`Loading existing graph from: ${this.config.graphPath}`);
-        const loadedGraph = loadGraph(this.config.graphPath);
-
-        // Verify the loaded graph has the expected root position
-        if (loadedGraph.rootPosition !== this.config.rootPosition) {
-          console.warn(
-            `Warning: Loaded graph root position (${loadedGraph.rootPosition}) ` +
-              `differs from config root position (${this.config.rootPosition}). ` +
-              `Using loaded graph's root position.`
-          );
-        }
-        return loadedGraph;
+        return loadGraph(this.config.graphPath);
       } catch (error) {
         console.warn(
-          `Failed to load graph from ${this.config.graphPath}: ${error}. ` +
-            `Creating new graph instead.`
+          `Failed to load graph from ${this.config.graphPath}:`,
+          error
         );
-        return new ChessGraph(this.config.rootPosition);
       }
-    } else {
-      console.log('Creating new ChessGraph');
-      return new ChessGraph(this.config.rootPosition);
+    }
+
+    return graph;
+  }
+
+  /**
+   * Get default analysis store (in-memory for backward compatibility)
+   */
+  private getDefaultAnalysisStore(): AnalysisStoreService {
+    // Note: This returns a Promise, but we need synchronous initialization
+    // In practice, this should be injected from outside
+    throw new Error(
+      'AnalysisStoreService must be provided via dependencies. Use createInMemoryAnalysisStoreService() to create one.'
+    );
+  }
+
+  /**
+   * Handle progress updates from strategy
+   */
+  private handleProgressUpdate(update: ProgressUpdate): void {
+    // Update current depth if provided in metadata
+    if (update.metadata?.depth) {
+      this.state.currentDepth = update.metadata.depth;
+    }
+
+    // Update explored positions count
+    this.state.exploredPositions = update.current;
+
+    // Update analyzed positions if position is provided in metadata
+    if (update.metadata?.position) {
+      this.state.analyzedPositions.add(update.metadata.position);
+    }
+
+    // Update max exploration depth if provided in metadata
+    if (update.metadata?.maxDepth) {
+      this.state.maxExplorationDepth = update.metadata.maxDepth;
     }
   }
 
   /**
-   * Initialize the analysis repository
+   * Cleanup resources
    */
-  // Add proper database cleanup
-  private async initializeAnalysisRepo(): IAnalysisRepo {
-    // Ensure database directory exists
-    const dbDir = path.dirname(this.config.databasePath);
-    if (!fs.existsSync(dbDir)) {
-      fs.mkdirSync(dbDir, { recursive: true });
-    }
-
-    // Initialize database and repository with proper error handling
-    const db = new sqlite3.Database(this.config.databasePath, err => {
-      if (err) {
-        console.error('Database initialization error:', err);
-        throw err;
-      }
-    });
-
-    // Update the method:
-    return await createAnalysisRepo(db);
-  }
-
-  // Add cleanup method
   async cleanup(): Promise<void> {
     try {
-      if (
-        this.analysisRepo &&
-        typeof (this.analysisRepo as any).cleanup === 'function'
-      ) {
-        await (this.analysisRepo as any).cleanup();
-      }
+      this.saveGraph();
+      // Note: AnalysisStoreService cleanup should be handled by the caller
+      // since it might be shared across multiple tasks
     } catch (error) {
-      console.warn('Cleanup error:', error);
+      console.error('Error during cleanup:', error);
     }
   }
 
   /**
-   * Save the ChessGraph to file
+   * Save graph to disk if path is configured
    */
   private saveGraph(): void {
-    try {
-      const graphDir = path.dirname(this.config.graphPath);
-      if (!fs.existsSync(graphDir)) {
-        fs.mkdirSync(graphDir, { recursive: true });
+    if (this.config.graphPath) {
+      try {
+        const dir = path.dirname(this.config.graphPath);
+        if (!fs.existsSync(dir)) {
+          fs.mkdirSync(dir, { recursive: true });
+        }
+        saveGraph(this.graph, this.config.graphPath);
+      } catch (error) {
+        console.error(
+          `Failed to save graph to ${this.config.graphPath}:`,
+          error
+        );
       }
-
-      const filename = path.basename(this.config.graphPath);
-      const directory = path.dirname(this.config.graphPath);
-
-      saveGraph(this.graph, filename, directory);
-    } catch (error) {
-      console.error('❌ Error saving graph:', error);
-      // Don't throw - continue exploration even if graph save fails
     }
   }
 
   /**
-   * Get the current exploration state (for monitoring/debugging)
-   * Now delegates to strategy when possible
+   * Get current exploration state
    */
   getExplorationState(): ExplorationState {
-    // Try to get state from strategy first
-    const strategyState = this.strategy.getExplorationState({
-      position: this.config.rootPosition,
-      graph: this.graph,
-      analysisRepo: this.analysisRepo,
-      config: {},
-      project: {} as any,
-      state: { pvExploration: undefined },
-    });
-
-    if (strategyState) {
-      // Convert strategy state to legacy format
-      return {
-        positionsToAnalyze: strategyState.positionsToAnalyze,
-        analyzedPositions: strategyState.analyzedPositions,
-        maxExplorationDepth: strategyState.maxDepth,
-        positionDepths: strategyState.positionDepths,
-        currentDepth: strategyState.currentDepth,
-        exploredPositions: strategyState.stats.totalAnalyzed,
-        isComplete: strategyState.positionsToAnalyze.length === 0,
-      };
-    }
-
-    // Fallback to legacy state
-    return { ...this.state };
+    return {
+      positionsToAnalyze: this.state.positionsToAnalyze,
+      analyzedPositions: this.state.analyzedPositions, // Keep as Set, don't convert to Array
+      maxExplorationDepth: this.state.maxExplorationDepth,
+      positionDepths: this.state.positionDepths,
+      currentDepth: this.state.currentDepth,
+      exploredPositions: this.state.exploredPositions,
+      isComplete: this.state.isComplete,
+    };
   }
 
-  /**
-   * Get the current ChessGraph
-   */
+  // Getters for accessing internal state
   getGraph(): ChessGraph {
     return this.graph;
   }
 
-  /**
-   * Get analysis configuration
-   */
   getAnalysisConfig(): AnalysisConfig {
     return this.analysisConfig;
   }
 
-  /**
-   * Get explorer configuration
-   */
   getConfig(): PVExplorerConfig {
     return this.config;
   }
 
-  /**
-   * Get the strategy instance (for advanced usage)
-   */
   getStrategy(): PVExplorationStrategy {
     return this.strategy;
   }
 
+  getAnalysisStore(): AnalysisStoreService {
+    return this.analysisStore;
+  }
+
   /**
-   * Get the analysis repository (for advanced usage)
+   * Get the analysis repository (for backward compatibility)
+   * @deprecated Use getAnalysisStore() instead
    */
-  getAnalysisRepo(): IAnalysisRepo {
-    return this.analysisRepo;
+  getAnalysisRepo() {
+    return this.analysisStore.getRepository();
   }
 }

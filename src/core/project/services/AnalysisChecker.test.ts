@@ -1,16 +1,19 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { AnalysisChecker, AnalysisCheckerConfig } from './AnalysisChecker';
-import { AnalysisRepo, createAnalysisRepo } from '../../analysis-store';
+import {
+  AnalysisStoreService,
+  createAnalysisStoreService,
+} from '../../analysis-store';
 import sqlite3 from 'sqlite3';
 
 describe('AnalysisChecker', () => {
   let checker: AnalysisChecker;
-  let analysisRepo: AnalysisRepo;
+  let analysisStoreService: AnalysisStoreService;
   let db: sqlite3.Database;
 
   beforeEach(async () => {
     db = new sqlite3.Database(':memory:');
-    analysisRepo = await createAnalysisRepo(db);
+    analysisStoreService = await createAnalysisStoreService(db);
 
     const config: AnalysisCheckerConfig = {
       minDepth: 10,
@@ -18,7 +21,7 @@ describe('AnalysisChecker', () => {
       preferHigherDepth: true,
     };
 
-    checker = new AnalysisChecker(analysisRepo, config);
+    checker = new AnalysisChecker(analysisStoreService, config);
   });
 
   describe('checkPosition', () => {

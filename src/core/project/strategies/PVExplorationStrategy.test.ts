@@ -3,7 +3,10 @@ import { PVExplorationStrategy } from './PVExplorationStrategy';
 import { PVExplorationConfig, StrategyContext } from './types';
 import { AnalysisConfig } from '../../engine/ChessEngine';
 import { ChessGraph } from '../../graph/ChessGraph';
-import { AnalysisRepo, createAnalysisRepo } from '../../analysis-store';
+import {
+  AnalysisStoreService,
+  createAnalysisStoreService,
+} from '../../analysis-store';
 import sqlite3 from 'sqlite3';
 import * as fs from 'fs';
 import * as path from 'path';
@@ -224,7 +227,7 @@ describe('PVExplorationStrategy', () => {
   let strategyConfig: PVExplorationConfig;
   let context: StrategyContext;
   let graph: ChessGraph;
-  let analysisRepo: AnalysisRepo;
+  let analysisStore: AnalysisStoreService;
 
   beforeEach(async () => {
     // Clean up test directory
@@ -253,12 +256,12 @@ describe('PVExplorationStrategy', () => {
       'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1'
     );
     const db = new sqlite3.Database(':memory:');
-    analysisRepo = await createAnalysisRepo(db);
+    analysisStore = await createAnalysisStoreService(db);
 
     context = {
       position: 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1',
       graph,
-      analysisRepo,
+      analysisStore,
       config: analysisConfig,
       project: {
         id: 'test-project',

@@ -4,16 +4,18 @@ import { AnalysisTaskExecutor } from './services/AnalysisTaskExecutor';
 import { AnalysisChecker } from './services/AnalysisChecker';
 import { StatePersistenceService } from './persistence/StatePersistenceService';
 import { ChessGraph } from '../graph/ChessGraph';
-import { AnalysisRepo } from '../analysis-store/AnalysisRepo';
 import sqlite3 from 'sqlite3';
 import * as fs from 'fs';
 import * as path from 'path';
 
-// Use persistent base directory for all integration tests
 const TEST_INTEGRATION_BASE_DIR = './tmp/test-integration';
 
-// Update import
-import { createAnalysisRepo } from '../analysis-store';
+// Add this import
+import {
+  createAnalysisRepo,
+  AnalysisStoreService,
+  createAnalysisStoreService,
+} from '../analysis-store';
 
 describe('Project Architecture Integration', () => {
   let testId: string;
@@ -27,21 +29,16 @@ describe('Project Architecture Integration', () => {
   let createdAnalysisStores: any[] = [];
 
   beforeEach(async () => {
-    // Each test gets its own unique subdirectory under the persistent base
-    testId = `${Date.now()}-${process.pid}-${Math.random().toString(36).substring(2, 15)}`;
+    // Generate unique test ID for isolation
+    testId = `test-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
     TEST_INTEGRATION_DIR = path.join(TEST_INTEGRATION_BASE_DIR, testId);
 
-    // Ensure the persistent base directory exists
-    if (!fs.existsSync(TEST_INTEGRATION_BASE_DIR)) {
-      fs.mkdirSync(TEST_INTEGRATION_BASE_DIR, { recursive: true });
+    // Ensure test directory exists
+    if (!fs.existsSync(TEST_INTEGRATION_DIR)) {
+      fs.mkdirSync(TEST_INTEGRATION_DIR, { recursive: true });
     }
 
-    // Clean up only this test's specific directory
-    await cleanupIntegrationDirectory(TEST_INTEGRATION_DIR);
-    fs.mkdirSync(TEST_INTEGRATION_DIR, { recursive: true });
-
-    await new Promise(resolve => setTimeout(resolve, 150));
-
+    // Initialize components
     projectManager = new ProjectManager();
     const graph = new ChessGraph();
 
@@ -51,16 +48,15 @@ describe('Project Architecture Integration', () => {
       `test-analysis-${testId}.db`
     );
     db = new sqlite3.Database(testDbPath);
-    const analysisRepo = new AnalysisRepo(db);
 
-    // FIX: Initialize the database schema
-    await analysisRepo.initializeSchema();
+    // Use factory function to create AnalysisStoreService directly
+    const analysisStore = await createAnalysisStoreService(db);
 
-    analysisChecker = new AnalysisChecker(analysisRepo);
+    analysisChecker = new AnalysisChecker(analysisStore);
 
     const dependencies = {
       graph,
-      analysisRepo,
+      analysisStore,
       strategyRegistry: {
         register: () => {},
         get: () => undefined,

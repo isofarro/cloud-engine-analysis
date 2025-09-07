@@ -166,7 +166,7 @@ export class PVExplorationStrategy implements AnalysisStrategy {
     }
 
     // Check if we have required dependencies
-    if (!context.graph || !context.analysisRepo) {
+    if (!context.graph || !context.analysisStore) {
       return false;
     }
 
@@ -413,7 +413,7 @@ export class PVExplorationStrategy implements AnalysisStrategy {
   }
 
   /**
-   * Store analysis result in the repository
+   * Store analysis result using the analysis store service
    */
   private async storeAnalysisResult(
     context: AnalysisContext,
@@ -424,32 +424,11 @@ export class PVExplorationStrategy implements AnalysisStrategy {
       const engineInfo = await this.engine.getEngineInfo();
       const engineSlug = `${(engineInfo.name || 'unknown').toLowerCase().replace(/\s+/g, '-')}-${engineInfo.version || '1.0'}`;
 
-      // Store using the analysis repository directly
-      // First ensure position exists
-      const position = await context.analysisRepo.upsertPosition({
-        fen: analysisResult.fen,
-      });
-
-      // Ensure engine exists
-      const [name, version] = this.parseEngineSlug(engineSlug);
-      const engine = await context.analysisRepo.upsertEngine({
-        slug: engineSlug,
-        name,
-        version,
-      });
-
-      // Store analysis
-      await context.analysisRepo.upsertAnalysis({
-        position_id: position.id,
-        engine_id: engine.id,
-        depth: analysisResult.depth,
-        time: analysisResult.time || 0,
-        nodes: analysisResult.nodes || 0,
-        nps: analysisResult.nps || 0,
-        score_type: analysisResult.score.type as 'cp' | 'mate',
-        score: analysisResult.score.score,
-        pv: analysisResult.pvs[0] || '',
-      });
+      // Use the analysis store service instead of direct repo access
+      await context.analysisStore.storeAnalysisResult(
+        analysisResult,
+        engineSlug
+      );
     } catch (error) {
       console.error('❌ Error storing analysis result:', error);
       // Don't throw - continue exploration even if storage fails

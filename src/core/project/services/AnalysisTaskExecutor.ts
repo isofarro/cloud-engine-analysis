@@ -145,7 +145,7 @@ export class AnalysisTaskExecutor {
     const context: AnalysisContext = {
       position,
       graph: this.dependencies.graph,
-      analysisRepo: this.dependencies.analysisRepo,
+      analysisStore: this.dependencies.analysisStore,
       project: additionalContext?.project || this.createDefaultProject(),
       config: additionalContext?.config || this.createDefaultConfig(),
       metadata: additionalContext?.metadata || {},
@@ -417,7 +417,7 @@ export class AnalysisTaskExecutor {
     const context: AnalysisContext = {
       position,
       graph: this.dependencies.graph,
-      analysisRepo: this.dependencies.analysisRepo,
+      analysisStore: this.dependencies.analysisStore,
       project: additionalContext?.project || this.createDefaultProject(),
       config: additionalContext?.config || this.createDefaultConfig(),
       metadata: additionalContext?.metadata || {},
@@ -444,7 +444,7 @@ export class AnalysisTaskExecutor {
     const context: AnalysisContext = {
       position,
       graph: this.dependencies.graph,
-      analysisRepo: this.dependencies.analysisRepo,
+      analysisStore: this.dependencies.analysisStore,
       project: additionalContext?.project || this.createDefaultProject(),
       config: additionalContext?.config || this.createDefaultConfig(),
       metadata: additionalContext?.metadata || {},
