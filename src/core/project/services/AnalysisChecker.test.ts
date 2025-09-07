@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { AnalysisChecker, AnalysisCheckerConfig } from './AnalysisChecker';
-import { AnalysisRepo } from '../../analysis-store/AnalysisRepo';
+import { AnalysisRepo, createAnalysisRepo } from '../../analysis-store';
 import sqlite3 from 'sqlite3';
 
 describe('AnalysisChecker', () => {
@@ -10,7 +10,7 @@ describe('AnalysisChecker', () => {
 
   beforeEach(async () => {
     db = new sqlite3.Database(':memory:');
-    analysisRepo = new AnalysisRepo(db);
+    analysisRepo = await createAnalysisRepo(db);
 
     const config: AnalysisCheckerConfig = {
       minDepth: 10,

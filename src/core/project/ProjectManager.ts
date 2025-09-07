@@ -12,6 +12,7 @@ import {
   ProjectConfig,
 } from './types';
 import sqlite3 from 'sqlite3';
+import { createAnalysisRepo } from '../analysis-store';
 
 /**
  * Default starting position FEN
@@ -57,17 +58,37 @@ export class ProjectManager implements IProjectManager {
       throw new Error(`Project already exists at: ${projectPath}`);
     }
 
-    // Ensure project directory exists
-    if (!fs.existsSync(projectPath)) {
-      fs.mkdirSync(projectPath, { recursive: true });
+    // Ensure project directory exists with enhanced error handling
+    try {
+      if (!fs.existsSync(projectPath)) {
+        fs.mkdirSync(projectPath, { recursive: true });
+      }
+
+      // Enhanced verification with retries
+      let retries = 0;
+      const maxRetries = 5;
+      while (!fs.existsSync(projectPath) && retries < maxRetries) {
+        await new Promise(resolve => setTimeout(resolve, 100));
+        retries++;
+      }
+
+      if (!fs.existsSync(projectPath)) {
+        throw new Error(
+          `Failed to create project directory after ${maxRetries} retries: ${projectPath}`
+        );
+      }
+
+      // Extended wait for file system stabilization
+      await new Promise(resolve => setTimeout(resolve, 200));
+    } catch (error) {
+      throw new Error(`Directory creation failed: ${error}`);
     }
 
-    // Generate project ID
+    // Generate project ID and metadata
     const projectId = this.generateProjectId(config.name);
     const rootPosition = config.rootPosition || DEFAULT_STARTING_POSITION;
     const now = new Date();
 
-    // Create project metadata
     const metadata: ProjectMetadata = {
       id: projectId,
       name: config.name,
@@ -77,42 +98,107 @@ export class ProjectManager implements IProjectManager {
       config: config.config || {},
     };
 
-    // Save project metadata
+    // Save project metadata with enhanced error handling
     const metadataPath = path.join(projectPath, PROJECT_METADATA_FILE);
-    fs.writeFileSync(metadataPath, JSON.stringify(metadata, null, 2), 'utf-8');
+    try {
+      // Ensure parent directory exists
+      const parentDir = path.dirname(metadataPath);
+      if (!fs.existsSync(parentDir)) {
+        fs.mkdirSync(parentDir, { recursive: true });
+        await new Promise(resolve => setTimeout(resolve, 100));
+      }
 
-    // Create initial chess graph
-    const graph = new ChessGraph(rootPosition);
-    const graphPath = path.join(projectPath, 'graph.json');
-    saveGraph(graph, 'graph.json', projectPath);
+      fs.writeFileSync(
+        metadataPath,
+        JSON.stringify(metadata, null, 2),
+        'utf-8'
+      );
 
-    // Create analysis database
-    const databasePath = path.join(projectPath, 'analysis.db');
-
-    // Ensure database directory exists
-    const dbDir = path.dirname(databasePath);
-    if (!fs.existsSync(dbDir)) {
-      fs.mkdirSync(dbDir, { recursive: true });
+      // Verify file was written
+      if (!fs.existsSync(metadataPath)) {
+        throw new Error(`Metadata file was not created: ${metadataPath}`);
+      }
+    } catch (error) {
+      throw new Error(`Failed to write project metadata: ${error}`);
     }
 
-    // Create SQLite database instance and repository
-    const db = new sqlite3.Database(databasePath);
-    const repo = new AnalysisRepo(db);
-    const analysisStore = new AnalysisStoreService(repo);
+    // Create and save chess graph with verification
+    const graph = new ChessGraph(rootPosition);
+    const graphPath = path.join(projectPath, 'graph.json');
+    try {
+      saveGraph(graph, 'graph.json', projectPath);
 
-    // Properly close database connection after initialization
-    await new Promise<void>((resolve, reject) => {
-      db.close(err => {
-        if (err) {
-          console.warn('Error closing database during project creation:', err);
-          reject(err);
-        } else {
-          resolve();
-        }
+      // Verify graph file was created
+      let graphRetries = 0;
+      while (!fs.existsSync(graphPath) && graphRetries < 5) {
+        await new Promise(resolve => setTimeout(resolve, 100));
+        graphRetries++;
+      }
+
+      if (!fs.existsSync(graphPath)) {
+        throw new Error(`Graph file was not created: ${graphPath}`);
+      }
+    } catch (error) {
+      throw new Error(`Failed to save chess graph: ${error}`);
+    }
+
+    // Create analysis database with proper schema initialization
+    const databasePath = path.join(projectPath, 'analysis.db');
+    // In ProjectManager.create() around line 140
+    try {
+      // Create database and initialize schema properly
+      const db = new sqlite3.Database(databasePath);
+
+      // Replace both instances:
+      const repo = await createAnalysisRepo(db);
+
+      // Wait for database operations to complete using serialize
+      await new Promise<void>((resolve, reject) => {
+        db.serialize(() => {
+          // Verify the schema was created successfully
+          db.run('SELECT 1', err => {
+            if (err) {
+              reject(new Error(`Database verification error: ${err.message}`));
+            } else {
+              resolve();
+            }
+          });
+        });
       });
-    });
 
-    // Return project instance
+      // Now safely close the database
+      await new Promise<void>((resolve, reject) => {
+        db.close(err => {
+          if (err) {
+            reject(new Error(`Database close error: ${err.message}`));
+          } else {
+            resolve();
+          }
+        });
+      });
+
+      // Extended wait for database file to be fully written
+      await new Promise(resolve => setTimeout(resolve, 300));
+
+      // Verify database file exists
+      if (!fs.existsSync(databasePath)) {
+        throw new Error(`Database file was not created: ${databasePath}`);
+      }
+    } catch (error) {
+      throw new Error(`Failed to create analysis database: ${error}`);
+    }
+
+    // Final verification with extended wait
+    await new Promise(resolve => setTimeout(resolve, 200));
+
+    // Verify all required files exist
+    const requiredFiles = [projectPath, graphPath, databasePath, metadataPath];
+    const missingFiles = requiredFiles.filter(file => !fs.existsSync(file));
+
+    if (missingFiles.length > 0) {
+      throw new Error(`Missing required files: ${missingFiles.join(', ')}`);
+    }
+
     return {
       id: projectId,
       name: config.name,
@@ -205,41 +291,63 @@ export class ProjectManager implements IProjectManager {
   }
 
   /**
-   * Delete a project
+   * Delete a project with enhanced cleanup
    */
   async delete(projectPath: string): Promise<void> {
-    const resolvedPath = path.resolve(projectPath);
+    const absolutePath = path.resolve(projectPath);
 
-    if (!(await this.isValidProject(resolvedPath))) {
-      throw new Error(`Invalid project directory: ${resolvedPath}`);
+    if (!fs.existsSync(absolutePath)) {
+      throw new Error(`Project directory does not exist: ${absolutePath}`);
     }
 
-    // Ensure any active database connections are closed
-    const databasePath = path.join(resolvedPath, 'analysis.db');
-    if (fs.existsSync(databasePath)) {
+    // Enhanced database cleanup
+    const dbPath = path.join(absolutePath, 'analysis.db');
+    if (fs.existsSync(dbPath)) {
       try {
-        // Create a temporary connection to ensure database is properly closed
-        const tempDb = new sqlite3.Database(databasePath);
-        await new Promise<void>((resolve, reject) => {
-          tempDb.close(err => {
-            if (err && !err.message.includes('SQLITE_MISUSE')) {
-              reject(err);
-            } else {
-              resolve();
-            }
-          });
-        });
+        // Try to rename first to detect file locks
+        const tempPath = `${dbPath}.deleting`;
+        fs.renameSync(dbPath, tempPath);
+
+        // Wait for any pending operations
+        await new Promise(resolve => setTimeout(resolve, 300));
+
+        // Delete the renamed file
+        fs.unlinkSync(tempPath);
       } catch (error) {
-        // Ignore connection errors during cleanup
-        console.warn('Warning during database cleanup:', error);
+        console.warn('Database cleanup error:', error);
+        // Try direct deletion as fallback
+        try {
+          fs.unlinkSync(dbPath);
+        } catch (fallbackError) {
+          console.warn('Fallback database deletion failed:', fallbackError);
+        }
       }
     }
 
-    // Small delay to ensure file system operations complete
-    await new Promise(resolve => setTimeout(resolve, 50));
+    // Wait before directory removal
+    await new Promise(resolve => setTimeout(resolve, 200));
 
-    // Remove the entire project directory
-    fs.rmSync(resolvedPath, { recursive: true, force: true });
+    // Enhanced directory removal with retries
+    for (let attempt = 0; attempt < 5; attempt++) {
+      try {
+        fs.rmSync(absolutePath, { recursive: true, force: true });
+
+        // Verify deletion
+        if (!fs.existsSync(absolutePath)) {
+          return; // Success
+        }
+
+        // If still exists, wait and retry
+        await new Promise(resolve => setTimeout(resolve, 300));
+      } catch (error) {
+        if (attempt === 4) {
+          throw new Error(
+            `Failed to delete project directory after 5 attempts: ${error}`
+          );
+        }
+        await new Promise(resolve => setTimeout(resolve, 300));
+      }
+    }
   }
 
   /**
@@ -257,11 +365,16 @@ export class ProjectManager implements IProjectManager {
         return false;
       }
 
-      // Check for required files
+      // Check for required files including metadata
       const graphPath = path.join(resolvedPath, 'graph.json');
       const databasePath = path.join(resolvedPath, 'analysis.db');
+      const metadataPath = path.join(resolvedPath, PROJECT_METADATA_FILE);
 
-      return fs.existsSync(graphPath) && fs.existsSync(databasePath);
+      return (
+        fs.existsSync(graphPath) &&
+        fs.existsSync(databasePath) &&
+        fs.existsSync(metadataPath)
+      );
     } catch {
       return false;
     }

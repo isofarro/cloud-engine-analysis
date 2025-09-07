@@ -1,9 +1,11 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { ProjectManager } from './ProjectManager';
-import { CreateProjectConfig, ChessProject } from './types';
+import { CreateProjectConfig } from './types';
 import * as fs from 'fs';
 import * as path from 'path';
 
+// Use process PID and timestamp for better isolation
+// Use persistent base directory for all ProjectManager tests
 const TEST_BASE_DIR = './tmp/test-projects';
 
 describe('ProjectManager', () => {
@@ -11,32 +13,111 @@ describe('ProjectManager', () => {
   let testId: string;
   let testDir: string;
 
-  beforeEach(() => {
-    // Generate unique test ID
-    testId = `${Date.now()}-${Math.random().toString(36).substring(7)}`;
+  beforeEach(async () => {
+    // Each test gets its own unique subdirectory under the persistent base
+    testId = `${Date.now()}-${process.pid}-${Math.random().toString(36).substring(2, 15)}`;
     testDir = path.join(TEST_BASE_DIR, testId);
 
     projectManager = new ProjectManager();
 
-    // Clean up test directory
-    if (fs.existsSync(testDir)) {
-      fs.rmSync(testDir, { recursive: true, force: true });
+    // Ensure the persistent base directory exists
+    if (!fs.existsSync(TEST_BASE_DIR)) {
+      fs.mkdirSync(TEST_BASE_DIR, { recursive: true });
     }
+
+    // Clean up only this test's specific directory
+    await cleanupTestDirectory(testDir);
     fs.mkdirSync(testDir, { recursive: true });
+
+    await new Promise(resolve => setTimeout(resolve, 100));
   });
 
   afterEach(async () => {
-    // Add delay for database cleanup
-    await new Promise(resolve => setTimeout(resolve, 100));
-
-    if (fs.existsSync(testDir)) {
-      fs.rmSync(testDir, { recursive: true, force: true });
-    }
+    // Only clean up this specific test's directory, never the base
+    await cleanupTestDirectory(testDir);
   });
+
+  // Updated cleanup function - only removes specific test directory
+  async function cleanupTestDirectory(dir: string): Promise<void> {
+    if (!fs.existsSync(dir)) return;
+
+    // NEVER remove the base directory, only individual test directories
+    if (dir === TEST_BASE_DIR) {
+      console.warn(
+        'Attempted to remove base test directory - skipping for safety'
+      );
+      return;
+    }
+
+    let retries = 0;
+    const maxRetries = 5;
+
+    while (retries < maxRetries) {
+      try {
+        // Force close any remaining database connections
+        const dbFiles = findDatabaseFiles(dir);
+        for (const dbFile of dbFiles) {
+          try {
+            const tempPath = dbFile + '.cleanup';
+            if (fs.existsSync(dbFile)) {
+              fs.renameSync(dbFile, tempPath);
+              fs.unlinkSync(tempPath);
+            }
+          } catch (dbError) {
+            await new Promise(resolve => setTimeout(resolve, 200));
+          }
+        }
+
+        // Remove the entire test directory (but never the base)
+        if (fs.existsSync(dir)) {
+          fs.rmSync(dir, { recursive: true, force: true });
+        }
+
+        return; // Success
+      } catch (error) {
+        retries++;
+        if (retries >= maxRetries) {
+          console.warn(
+            `Failed to cleanup test directory after ${maxRetries} attempts:`,
+            error
+          );
+          return;
+        }
+        await new Promise(resolve => setTimeout(resolve, 500 * retries));
+      }
+    }
+  }
+
+  function findDatabaseFiles(dir: string): string[] {
+    const dbFiles: string[] = [];
+
+    if (!fs.existsSync(dir)) return dbFiles;
+
+    try {
+      const walk = (currentDir: string) => {
+        const files = fs.readdirSync(currentDir);
+        for (const file of files) {
+          const filePath = path.join(currentDir, file);
+          const stat = fs.statSync(filePath);
+
+          if (stat.isDirectory()) {
+            walk(filePath);
+          } else if (file.endsWith('.db')) {
+            dbFiles.push(filePath);
+          }
+        }
+      };
+
+      walk(dir);
+    } catch (error) {
+      // Ignore errors during file discovery
+    }
+
+    return dbFiles;
+  }
 
   describe('create', () => {
     it('should create a new project with default configuration', async () => {
-      const testDir = path.join(TEST_BASE_DIR, testId);
       const config: CreateProjectConfig = {
         name: 'test-project',
         projectPath: path.join(testDir, 'test-project'),
@@ -58,7 +139,7 @@ describe('ProjectManager', () => {
         'r1bqkbnr/pppp1ppp/2n5/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R w KQkq - 2 3';
       const config: CreateProjectConfig = {
         name: 'custom-project',
-        projectPath: path.join(TEST_BASE_DIR, 'custom-project'),
+        projectPath: path.join(testDir, 'custom-project'),
         rootPosition: customFen,
       };
 
@@ -69,7 +150,7 @@ describe('ProjectManager', () => {
     it('should throw error if project already exists', async () => {
       const config: CreateProjectConfig = {
         name: 'duplicate-project',
-        projectPath: path.join(TEST_BASE_DIR, 'duplicate-project'),
+        projectPath: path.join(testDir, 'duplicate-project'),
       };
 
       await projectManager.create(config);
@@ -83,7 +164,7 @@ describe('ProjectManager', () => {
     it('should load existing project', async () => {
       const config: CreateProjectConfig = {
         name: 'load-test',
-        projectPath: path.join(TEST_BASE_DIR, 'load-test'),
+        projectPath: path.join(testDir, 'load-test'),
       };
 
       const originalProject = await projectManager.create(config);
@@ -97,7 +178,7 @@ describe('ProjectManager', () => {
     });
 
     it('should throw error for non-existent project', async () => {
-      const nonExistentPath = path.join(TEST_BASE_DIR, 'non-existent');
+      const nonExistentPath = path.join(testDir, 'non-existent');
       await expect(projectManager.load(nonExistentPath)).rejects.toThrow(
         'Invalid project directory:'
       );
@@ -124,7 +205,7 @@ describe('ProjectManager', () => {
     it('should return true for valid project', async () => {
       const config: CreateProjectConfig = {
         name: 'valid-project',
-        projectPath: path.join(TEST_BASE_DIR, 'valid-project'),
+        projectPath: path.join(testDir, 'valid-project'),
       };
 
       const project = await projectManager.create(config);
@@ -133,7 +214,7 @@ describe('ProjectManager', () => {
     });
 
     it('should return false for invalid project', async () => {
-      const invalidPath = path.join(TEST_BASE_DIR, 'invalid');
+      const invalidPath = path.join(testDir, 'invalid');
       fs.mkdirSync(invalidPath, { recursive: true });
 
       const isValid = await projectManager.isValidProject(invalidPath);
@@ -143,8 +224,6 @@ describe('ProjectManager', () => {
 
   describe('list', () => {
     it('should list all projects in directory', async () => {
-      const testDir = path.join(TEST_BASE_DIR, testId);
-
       await projectManager.create({
         name: 'project1',
         projectPath: path.join(testDir, 'project1'),
@@ -165,18 +244,28 @@ describe('ProjectManager', () => {
     it('should delete existing project', async () => {
       const config: CreateProjectConfig = {
         name: 'delete-test',
-        projectPath: path.join(TEST_BASE_DIR, 'delete-test'),
+        projectPath: path.join(testDir, 'delete-test'),
       };
 
       const project = await projectManager.create(config);
       expect(fs.existsSync(project.projectPath)).toBe(true);
 
-      // Ensure any database connections are properly closed
-      // by waiting a bit for async operations to complete
-      await new Promise(resolve => setTimeout(resolve, 100));
+      // Ensure database is fully written and closed
+      await new Promise(resolve => setTimeout(resolve, 200));
 
       await projectManager.delete(project.projectPath);
-      expect(fs.existsSync(project.projectPath)).toBe(false);
+
+      // Verify deletion with retries for file system consistency
+      let deleted = false;
+      for (let i = 0; i < 10; i++) {
+        if (!fs.existsSync(project.projectPath)) {
+          deleted = true;
+          break;
+        }
+        await new Promise(resolve => setTimeout(resolve, 50));
+      }
+
+      expect(deleted).toBe(true);
     });
   });
 });

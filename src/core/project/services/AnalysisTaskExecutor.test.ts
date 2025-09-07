@@ -10,7 +10,7 @@ import {
   AnalysisResult,
 } from '../types';
 import { ChessGraph } from '../../graph/ChessGraph';
-import { AnalysisRepo } from '../../analysis-store/AnalysisRepo';
+import { AnalysisRepo, createAnalysisRepo } from '../../analysis-store';
 import sqlite3 from 'sqlite3';
 
 // Mock strategy for testing
@@ -79,7 +79,7 @@ describe('AnalysisTaskExecutor', () => {
   beforeEach(async () => {
     const graph = new ChessGraph();
     const db = new sqlite3.Database(':memory:');
-    const analysisRepo = new AnalysisRepo(db);
+    const analysisRepo = await createAnalysisRepo(db);
 
     mockStrategy = new MockAnalysisStrategy();
     failingStrategy = new FailingMockStrategy();
