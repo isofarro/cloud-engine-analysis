@@ -2,12 +2,11 @@
 
 import * as fs from 'fs';
 import * as path from 'path';
-import sqlite3 from 'sqlite3';
 import { Command } from 'commander';
-import { AnalysisRepo, AnalysisStoreService } from '../src/core/analysis-store';
+import { AnalysisStoreService } from '../src/core/analysis-store';
 import { parseEPDLine } from '../src/core/utils/epd';
-
-
+import { createAnalysisStoreService } from '../src/core/analysis-store';
+import sqlite3 from 'sqlite3';
 
 /**
  * Imports EPD file data into the Analysis Store database.
@@ -28,10 +27,11 @@ async function importEPDFile(epdFilePath: string, dbFilePath: string, engineSlug
     fs.mkdirSync(dbDir, { recursive: true });
   }
 
-  // Initialize database and repository
+  // Create database instance first
   const db = new sqlite3.Database(dbFilePath);
-  const repo = new AnalysisRepo(db);
-  const storeService = new AnalysisStoreService(repo);
+  
+  // Use factory to create service with proper initialization
+  const storeService = await createAnalysisStoreService(db);
 
   try {
     console.log('✓ Database initialized');
@@ -80,7 +80,7 @@ async function importEPDFile(epdFilePath: string, dbFilePath: string, engineSlug
     console.log(`  Skipped: ${skipped} positions`);
 
     // Display database statistics
-    const stats = await repo.getStats();
+    const stats = await storeService.getStats();
     console.log(`\n✓ Database statistics:`);
     console.log(`  Total positions: ${stats.totalPositions}`);
     console.log(`  Total engines: ${stats.totalEngines}`);
@@ -88,8 +88,8 @@ async function importEPDFile(epdFilePath: string, dbFilePath: string, engineSlug
     console.log(`  Average depth: ${stats.avgDepth.toFixed(1)}`);
 
   } finally {
-    // Close database connection
-    db.close();
+    // Close database connection through the service
+    await storeService.close();
   }
 }
 

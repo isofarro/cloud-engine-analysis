@@ -1,22 +1,16 @@
-import sqlite3 from 'sqlite3';
 import {
-  AnalysisStoreService,
-  AnalysisRepo,
   AnalysisUtils,
+  createAnalysisStoreService,
 } from '../../src/core/analysis-store';
+import sqlite3 from 'sqlite3';
 import { AnalysisResult } from '../../src/core/engine/types';
 
-/**
- * Basic usage example of the AnalysisRepo for storing and retrieving
- * chess engine analysis results.
- */
 async function basicUsageExample() {
-  console.log('=== Analysis Store Basic Usage Example ===\n');
-
-  // Initialize in-memory SQLite database for this example
+  // Create database
   const db = new sqlite3.Database(':memory:');
-  const repo = new AnalysisRepo(db);
-  const service = new AnalysisStoreService(repo);
+
+  // Use factory to create service with initialized schema
+  const service = await createAnalysisStoreService(db);
 
   try {
     // Example 1: Store a single analysis result
