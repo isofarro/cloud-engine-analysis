@@ -99,6 +99,15 @@ export class ChessProjectCLI {
         this.projectCommands!.delete(projectName, options);
       });
 
+    // Make move command
+    this.program
+      .command('make-move <project-name> <fromFen> <move> <toFen>')
+      .description('Add a move edge to the project graph')
+      .option('--primary', 'Mark this move as the primary/main line move')
+      .action(async (projectName, fromFen, move, toFen, options) => {
+        await this.projectCommands!.addMove(projectName, fromFen, move, toFen, options.primary);
+      });
+
     // Analysis management commands
     const analysisCmd = this.program
       .command('analysis')

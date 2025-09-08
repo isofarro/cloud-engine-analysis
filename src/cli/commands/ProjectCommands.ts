@@ -147,7 +147,7 @@ export class ProjectCommands {
         throw new Error('Invalid FEN positions provided');
       }
 
-      const projectPath = path.join(process.cwd(), projectName);
+      const projectPath = path.join('./_data/projects', projectName);
       const project = await this.dependencies.projectManager.load(projectPath);
 
       // Load project graph
