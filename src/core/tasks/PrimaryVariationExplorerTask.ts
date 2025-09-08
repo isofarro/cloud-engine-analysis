@@ -1,145 +1,114 @@
 import { ChessEngine, AnalysisConfig } from '../engine/ChessEngine';
-import { AnalysisResult } from '../engine/types';
 import { ChessGraph } from '../graph/ChessGraph';
 import { saveGraph, loadGraph } from '../utils/graph';
-import { AnalysisStoreService } from '../analysis-store/AnalysisStoreService';
-import { AnalysisRepo } from '../analysis-store/AnalysisRepo';
-import { PositionAnalysisTask } from './PositionAnalysisTask';
+import { AnalysisStoreService } from '../analysis-store';
 import { PVExplorerConfig, ExplorationState } from './types/pv-explorer';
-import { FenString } from '../types';
-import { Chess } from 'chess.ts';
-import { convertMoveToSan } from '../utils/move';
-import sqlite3 from 'sqlite3';
+import { PVExplorationStrategy } from '../project/strategies/PVExplorationStrategy';
+import { PVExplorationConfig } from '../project/strategies/types';
 import * as fs from 'fs';
 import * as path from 'path';
+import { StrategyContext, ProgressUpdate } from '../project/strategies/types';
+import { FenString } from '../types';
+import { ChessProject } from '../project/types'; // Add this import
 
 /**
- * Primary Variation Explorer Task
+ * Dependencies for PrimaryVariationExplorerTask
+ */
+export interface PVExplorerDependencies {
+  graph?: ChessGraph;
+  strategy?: PVExplorationStrategy;
+  analysisStore?: AnalysisStoreService;
+}
+
+/**
+ * Primary Variation Explorer Task (Refactored)
  *
- * Explores chess positions by analyzing principal variations in depth,
- * building a comprehensive ChessGraph and storing analysis results.
- * Follows the architectural approach documented in 08-explore-primary-variation.md
+ * Now uses dependency injection and delegates core exploration logic
+ * to PVExplorationStrategy for better modularity and testability.
+ * Uses AnalysisStoreService instead of direct repository access.
  */
 export class PrimaryVariationExplorerTask {
   private engine: ChessEngine;
   private analysisConfig: AnalysisConfig;
   private config: PVExplorerConfig;
-  private positionAnalysisTask: PositionAnalysisTask;
-  private analysisStoreService!: AnalysisStoreService;
   private graph: ChessGraph;
+  private analysisStore: AnalysisStoreService;
+  private strategy: PVExplorationStrategy;
   private state: ExplorationState;
+  private project: ChessProject; // Add project property
 
   constructor(
     engine: ChessEngine,
     analysisConfig: AnalysisConfig,
     config: PVExplorerConfig,
-    analysisStoreService?: AnalysisStoreService
+    project: ChessProject, // Add project parameter
+    dependencies?: PVExplorerDependencies
   ) {
     this.engine = engine;
     this.analysisConfig = analysisConfig;
     this.config = config;
+    this.project = project; // Store project
 
-    // Initialize position analysis task with same engine and config
-    this.positionAnalysisTask = new PositionAnalysisTask(
-      engine,
-      analysisConfig
-    );
+    // Initialize dependencies with fallbacks for backward compatibility
+    this.graph = dependencies?.graph || this.initializeGraph();
+    this.analysisStore =
+      dependencies?.analysisStore || this.getDefaultAnalysisStore();
 
-    // Initialize analysis store service
-    if (analysisStoreService) {
-      this.analysisStoreService = analysisStoreService;
-    } else {
-      this.initializeAnalysisStore();
-    }
+    // Create strategy config from PVExplorerConfig
+    const strategyConfig: PVExplorationConfig = {
+      maxDepthRatio: this.config.maxDepthRatio,
+      maxPositions: this.config.maxPositions,
+      exploreAlternatives: false, // Default value
+      alternativeThreshold: 30, // Default value
+    };
 
-    // Initialize graph
-    this.graph = this.initializeGraph();
+    this.strategy =
+      dependencies?.strategy ||
+      new PVExplorationStrategy(engine, analysisConfig, strategyConfig);
 
-    // Initialize exploration state
+    // Initialize state to match ExplorationState interface
     this.state = {
-      positionsToAnalyze: [config.rootPosition],
-      analyzedPositions: new Set(),
+      positionsToAnalyze: [this.config.rootPosition],
+      analyzedPositions: new Set<FenString>(),
       maxExplorationDepth: 0,
-      positionDepths: new Map([[config.rootPosition, 0]]),
+      positionDepths: new Map<FenString, number>(),
+      currentDepth: 0,
+      exploredPositions: 0,
+      isComplete: false,
     };
   }
 
   /**
-   * Initialize the ChessGraph - either load from existing file or create new
-   */
-  /**
-   * Initialize the ChessGraph - either load from existing file or create new
-   */
-  private initializeGraph(): ChessGraph {
-    if (this.config.graphPath && fs.existsSync(this.config.graphPath)) {
-      try {
-        console.log(`Loading existing graph from: ${this.config.graphPath}`);
-        const loadedGraph = loadGraph(this.config.graphPath);
-  
-        // Verify the loaded graph has the expected root position
-        if (loadedGraph.rootPosition !== this.config.rootPosition) {
-          console.warn(
-            `Warning: Loaded graph root position (${loadedGraph.rootPosition}) ` +
-              `differs from config root position (${this.config.rootPosition}). ` +
-              `Using loaded graph's root position.`
-          );
-        }
-        return loadedGraph;
-      } catch (error) {
-        console.warn(
-          `Failed to load graph from ${this.config.graphPath}: ${error}. ` +
-            `Creating new graph instead.`
-        );
-        return new ChessGraph(this.config.rootPosition);
-      }
-    } else {
-      console.log('Creating new ChessGraph');
-      return new ChessGraph(this.config.rootPosition);
-    }
-  }
-
-  /**
-   * Initialize the analysis store service with database
-   */
-  private initializeAnalysisStore(): void {
-    // Ensure database directory exists
-    const dbDir = path.dirname(this.config.databasePath);
-    if (!fs.existsSync(dbDir)) {
-      fs.mkdirSync(dbDir, { recursive: true });
-    }
-
-    // Initialize database and repository
-    const db = new sqlite3.Database(this.config.databasePath);
-    const repo = new AnalysisRepo(db);
-    this.analysisStoreService = new AnalysisStoreService(repo);
-  }
-
-  /**
-   * Main exploration method
-   * Analyzes the root position and explores the principal variation tree
+   * Execute the primary variation exploration
    */
   async explore(): Promise<void> {
-    console.log(
-      `Starting Primary Variation exploration from: ${this.config.rootPosition}`
-    );
-    console.log(
-      `Analysis config: depth=${this.analysisConfig.depth}, time=${this.analysisConfig.time}, multiPV=${this.analysisConfig.multiPV}`
-    );
-    console.log(`Max depth ratio: ${this.config.maxDepthRatio}`);
+    // Update state to indicate exploration is running
+    this.state.isComplete = false;
 
     try {
-      // Step 1: Analyze root position to determine exploration depth
-      await this.analyzeRootPosition();
+      const context: StrategyContext = {
+        position: this.config.rootPosition,
+        graph: this.graph,
+        analysisStore: this.analysisStore,
+        config: this.analysisConfig,
+        project: this.project, // Use the stored project
+        onProgress: (update: ProgressUpdate) => {
+          this.handleProgressUpdate(update);
+        },
+      };
 
-      // Step 2: Process the exploration queue
-      await this.processExplorationQueue();
+      // Execute the strategy
+      const results = await this.strategy.execute(context);
 
-      console.log('\n✅ Primary Variation exploration completed successfully!');
+      // Mark exploration as complete
+      this.state.isComplete = true;
+
+      // Save the graph
+      this.saveGraph();
+
       console.log(
-        `📊 Total positions analyzed: ${this.state.analyzedPositions.size}`
+        `✅ Exploration completed with ${results.length} analysis results`
       );
-      console.log(`📁 ChessGraph saved to: ${this.config.graphPath}`);
-      console.log(`🗄️  Analysis database: ${this.config.databasePath}`);
     } catch (error) {
       console.error('❌ Error during exploration:', error);
       throw error;
@@ -147,235 +116,134 @@ export class PrimaryVariationExplorerTask {
   }
 
   /**
-   * Analyze the root position and set up exploration parameters
+   * Initialize graph with fallback behavior
    */
-  private async analyzeRootPosition(): Promise<void> {
-    console.log('\n🔍 Analyzing root position...');
+  private initializeGraph(): ChessGraph {
+    const graph = new ChessGraph(this.config.rootPosition); // Pass rootPosition to constructor
 
-    const analysisResult = await this.positionAnalysisTask.analysePosition(
-      this.config.rootPosition
-    );
-
-    // Calculate max exploration depth based on analysis depth and ratio
-    this.state.maxExplorationDepth = Math.floor(
-      analysisResult.depth * this.config.maxDepthRatio
-    );
-
-    console.log(`📏 Initial analysis depth: ${analysisResult.depth}`);
-    console.log(`🎯 Max exploration depth: ${this.state.maxExplorationDepth}`);
-
-    // Process the root analysis
-    await this.processPositionAnalysis(
-      this.config.rootPosition,
-      analysisResult
-    );
-  }
-
-  /**
-   * Process the exploration queue until all positions within depth limit are analyzed
-   */
-  private async processExplorationQueue(): Promise<void> {
-    console.log('\n🚀 Starting exploration queue processing...');
-
-    while (this.state.positionsToAnalyze.length > 0) {
-      const currentPosition = this.state.positionsToAnalyze.shift()!;
-      const currentDepth = this.state.positionDepths.get(currentPosition) || 0;
-
-      // Skip if already analyzed or beyond depth limit
-      if (this.state.analyzedPositions.has(currentPosition)) {
-        continue;
-      }
-
-      if (currentDepth >= this.state.maxExplorationDepth) {
-        console.log(
-          `⏭️  Skipping position at depth ${currentDepth} (beyond limit ${this.state.maxExplorationDepth})`
+    // Try to load existing graph if path is provided
+    if (this.config.graphPath && fs.existsSync(this.config.graphPath)) {
+      try {
+        return loadGraph(this.config.graphPath);
+      } catch (error) {
+        console.warn(
+          `Failed to load graph from ${this.config.graphPath}:`,
+          error
         );
-        continue;
       }
+    }
 
-      console.log(`\n🔍 Analyzing position at depth ${currentDepth}...`);
-      console.log(`📍 FEN: ${currentPosition}`);
+    return graph;
+  }
 
-      try {
-        // Analyze the position
-        const analysisResult =
-          await this.positionAnalysisTask.analysePosition(currentPosition);
+  /**
+   * Get default analysis store (in-memory for backward compatibility)
+   */
+  private getDefaultAnalysisStore(): AnalysisStoreService {
+    // Note: This returns a Promise, but we need synchronous initialization
+    // In practice, this should be injected from outside
+    throw new Error(
+      'AnalysisStoreService must be provided via dependencies. Use createInMemoryAnalysisStoreService() to create one.'
+    );
+  }
 
-        // Process the analysis result
-        await this.processPositionAnalysis(currentPosition, analysisResult);
-      } catch (error) {
-        console.error(`❌ Error analyzing position ${currentPosition}:`, error);
-        // Mark as analyzed to avoid infinite loops
-        this.state.analyzedPositions.add(currentPosition);
-      }
+  /**
+   * Handle progress updates from strategy
+   */
+  private handleProgressUpdate(update: ProgressUpdate): void {
+    // Update current depth if provided in metadata
+    if (update.metadata?.depth) {
+      this.state.currentDepth = update.metadata.depth;
+    }
+
+    // Update explored positions count
+    this.state.exploredPositions = update.current;
+
+    // Update analyzed positions if position is provided in metadata
+    if (update.metadata?.position) {
+      this.state.analyzedPositions.add(update.metadata.position);
+    }
+
+    // Update max exploration depth if provided in metadata
+    if (update.metadata?.maxDepth) {
+      this.state.maxExplorationDepth = update.metadata.maxDepth;
     }
   }
 
   /**
-   * Process analysis result for a position
-   * Adds PV to graph, stores analysis, and queues new positions
+   * Cleanup resources
    */
-  private async processPositionAnalysis(
-    position: FenString,
-    analysisResult: AnalysisResult
-  ): Promise<void> {
-    // Mark position as analyzed
-    this.state.analyzedPositions.add(position);
-
-    // Extract principal variation
-    const pv = analysisResult.pvs[0];
-    if (!pv || pv.trim() === '') {
-      console.log('⚠️  No principal variation found, skipping...');
-      return;
-    }
-
-    console.log(`📝 Principal Variation: ${pv}`);
-
-    // Add entire PV sequence to graph
-    await this.addPVToGraph(position, pv);
-
-    // Store analysis in database
-    await this.storeAnalysisResult(analysisResult);
-
-    // Save graph after each analysis
-    this.saveGraph();
-
-    console.log(`✅ Position processed and graph updated`);
-  }
-
-  /**
-   * Add the entire Principal Variation sequence to the ChessGraph
-   * Each move in deeper analysis becomes primary, demoting existing moves
-   */
-  private async addPVToGraph(
-    startPosition: FenString,
-    pv: string
-  ): Promise<void> {
-    const moves = pv.split(' ').filter(move => move.trim() !== '');
-    if (moves.length === 0) return;
-
-    const chess = new Chess(startPosition);
-    let currentPosition = startPosition;
-    let currentDepth = this.state.positionDepths.get(startPosition) || 0;
-
-    for (let i = 0; i < moves.length; i++) {
-      const move = moves[i];
-
-      try {
-        // Convert UCI moves to SAN format
-        const moveResult = convertMoveToSan(chess, move);
-        if (!moveResult) {
-          console.log(`  ⚠️  Invalid move '${move}', stopping PV processing`);
-          break;
-        }
-        const nextPosition = chess.fen();
-
-        // Add move to graph as primary (deeper analysis always wins)
-        const sanMove = moveResult.san;
-        this.graph.addMove(
-          currentPosition,
-          {
-            move: sanMove,
-            toFen: nextPosition,
-          },
-          true
-        ); // true = primary, demotes existing primary to alternative
-
-        console.log(`  ➕ Added move: ${sanMove} (${nextPosition})`);
-
-        // Calculate depth for next position (each move in PV is one ply deeper)
-        const nextDepth = currentDepth + 1;
-        this.state.positionDepths.set(nextPosition, nextDepth);
-
-        // Queue position for analysis if within depth limits and not already processed
-        if (
-          nextDepth < this.state.maxExplorationDepth &&
-          !this.state.analyzedPositions.has(nextPosition) &&
-          !this.state.positionsToAnalyze.includes(nextPosition)
-        ) {
-          this.state.positionsToAnalyze.push(nextPosition);
-          console.log(
-            `  📋 Queued position for analysis at depth ${nextDepth}`
-          );
-        }
-
-        // Update current depth for next iteration
-        currentDepth = nextDepth;
-
-        currentPosition = nextPosition;
-      } catch (error) {
-        console.log(`  ⚠️  Invalid move '${move}', stopping PV processing`);
-        break;
-      }
-    }
-  }
-
-  /**
-   * Store analysis result in the database
-   */
-  private async storeAnalysisResult(
-    analysisResult: AnalysisResult
-  ): Promise<void> {
+  async cleanup(): Promise<void> {
     try {
-      // Get engine slug from engine info
-      const engineInfo = await this.engine.getEngineInfo();
-      const engineSlug = `${(engineInfo.name || 'unknown').toLowerCase().replace(/\s+/g, '-')}-${engineInfo.version || '1.0'}`;
-
-      await this.analysisStoreService.storeAnalysisResult(
-        analysisResult,
-        engineSlug
-      );
+      this.saveGraph();
+      // Note: AnalysisStoreService cleanup should be handled by the caller
+      // since it might be shared across multiple tasks
     } catch (error) {
-      console.error('❌ Error storing analysis result:', error);
-      // Don't throw - continue exploration even if storage fails
+      console.error('Error during cleanup:', error);
     }
   }
 
   /**
-   * Save the ChessGraph to file
+   * Save graph to disk if path is configured
    */
   private saveGraph(): void {
-    try {
-      const graphDir = path.dirname(this.config.graphPath);
-      if (!fs.existsSync(graphDir)) {
-        fs.mkdirSync(graphDir, { recursive: true });
+    if (this.config.graphPath) {
+      try {
+        const dir = path.dirname(this.config.graphPath);
+        if (!fs.existsSync(dir)) {
+          fs.mkdirSync(dir, { recursive: true });
+        }
+        saveGraph(this.graph, this.config.graphPath);
+      } catch (error) {
+        console.error(
+          `Failed to save graph to ${this.config.graphPath}:`,
+          error
+        );
       }
-
-      const filename = path.basename(this.config.graphPath);
-      const directory = path.dirname(this.config.graphPath);
-
-      saveGraph(this.graph, filename, directory);
-    } catch (error) {
-      console.error('❌ Error saving graph:', error);
-      // Don't throw - continue exploration even if graph save fails
     }
   }
 
   /**
-   * Get the current exploration state (for monitoring/debugging)
+   * Get current exploration state
    */
   getExplorationState(): ExplorationState {
-    return { ...this.state };
+    return {
+      positionsToAnalyze: this.state.positionsToAnalyze,
+      analyzedPositions: this.state.analyzedPositions, // Keep as Set, don't convert to Array
+      maxExplorationDepth: this.state.maxExplorationDepth,
+      positionDepths: this.state.positionDepths,
+      currentDepth: this.state.currentDepth,
+      exploredPositions: this.state.exploredPositions,
+      isComplete: this.state.isComplete,
+    };
   }
 
-  /**
-   * Get the current ChessGraph
-   */
+  // Getters for accessing internal state
   getGraph(): ChessGraph {
     return this.graph;
   }
 
-  /**
-   * Get analysis configuration
-   */
   getAnalysisConfig(): AnalysisConfig {
     return this.analysisConfig;
   }
 
-  /**
-   * Get explorer configuration
-   */
   getConfig(): PVExplorerConfig {
     return this.config;
+  }
+
+  getStrategy(): PVExplorationStrategy {
+    return this.strategy;
+  }
+
+  getAnalysisStore(): AnalysisStoreService {
+    return this.analysisStore;
+  }
+
+  /**
+   * Get the analysis repository (for backward compatibility)
+   * @deprecated Use getAnalysisStore() instead
+   */
+  getAnalysisRepo() {
+    return this.analysisStore.getRepository();
   }
 }

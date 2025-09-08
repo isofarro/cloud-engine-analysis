@@ -67,4 +67,6 @@ export interface AnalysisWithDetails extends Analysis {
   engine_slug: string;
   engine_name: string;
   engine_version: string;
+  created_at: string;
+  updated_at: string;
 }

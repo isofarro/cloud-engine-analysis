@@ -168,14 +168,70 @@ export class AnalysisRepo implements IAnalysisRepo {
 
   constructor(database: Database) {
     this.db = database;
-    this.initializeDatabase();
+    // Don't auto-initialize - let caller control when this happens
   }
 
   /**
    * Initialize database schema with performance-optimized indexes.
+   * Must be called after constructor.
    */
-  private initializeDatabase(): void {
-    this.db.exec(AnalysisRepo.SQL_QUERIES.INIT_SCHEMA);
+  async initializeSchema(): Promise<void> {
+    return new Promise<void>((resolve, reject) => {
+      // Use serialize to ensure operations are executed sequentially
+      this.db.serialize(() => {
+        // Enable WAL mode for better concurrency handling
+        this.db.run('PRAGMA journal_mode=WAL');
+
+        // Set busy timeout to handle concurrent access
+        this.db.run('PRAGMA busy_timeout=10000');
+
+        // Begin immediate transaction to prevent concurrent schema modifications
+        this.db.run('BEGIN IMMEDIATE TRANSACTION', err => {
+          if (err) {
+            reject(new Error(`Failed to begin transaction: ${err.message}`));
+            return;
+          }
+
+          this.db.exec(AnalysisRepo.SQL_QUERIES.INIT_SCHEMA, err => {
+            if (err) {
+              // Rollback on error
+              this.db.run('ROLLBACK', () => {
+                reject(
+                  new Error(`Schema initialization error: ${err.message}`)
+                );
+              });
+            } else {
+              // Commit on success
+              this.db.run('COMMIT', commitErr => {
+                if (commitErr) {
+                  reject(
+                    new Error(`Failed to commit schema: ${commitErr.message}`)
+                  );
+                } else {
+                  resolve();
+                }
+              });
+            }
+          });
+        });
+      });
+    });
+  }
+
+  /**
+   * Public method to initialize database schema for a given database instance.
+   * This allows external code to initialize the schema without accessing private members.
+   */
+  public static async initializeSchema(database: Database): Promise<void> {
+    return new Promise<void>((resolve, reject) => {
+      database.exec(AnalysisRepo.SQL_QUERIES.INIT_SCHEMA, err => {
+        if (err) {
+          reject(new Error(`Schema initialization error: ${err.message}`));
+        } else {
+          resolve();
+        }
+      });
+    });
   }
 
   // Helper method to promisify database operations
@@ -467,6 +523,44 @@ export class AnalysisRepo implements IAnalysisRepo {
   }
 
   // Performance and maintenance
+  /**
+   * Close the database connection and clear all caches
+   */
+  async close(): Promise<void> {
+    // Clear all caches
+    this.engineCache.clear();
+    this.positionCache.clear();
+    this.analysisCache.clear();
+
+    // Close database connection with better error handling
+    return new Promise<void>((resolve, reject) => {
+      if (!this.db) {
+        resolve();
+        return;
+      }
+
+      this.db.close(err => {
+        if (err) {
+          // Don't reject on certain expected errors during cleanup
+          if (
+            err.message.includes('SQLITE_MISUSE') ||
+            err.message.includes('SQLITE_READONLY')
+          ) {
+            console.warn(
+              'Database close warning (expected during cleanup):',
+              err.message
+            );
+            resolve();
+          } else {
+            reject(err);
+          }
+        } else {
+          resolve();
+        }
+      });
+    });
+  }
+
   async clearCache(): Promise<void> {
     this.engineCache.clear();
     this.positionCache.clear();

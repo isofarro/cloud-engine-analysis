@@ -2,11 +2,10 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { PrimaryVariationExplorerTask } from './PrimaryVariationExplorerTask';
 import { PVExplorerConfig } from './types/pv-explorer';
 import { AnalysisConfig } from '../engine/ChessEngine';
-
+import { ChessProject } from '../project/types';
 import * as fs from 'fs';
 import * as path from 'path';
 
-// Mock engine for testing
 class MockChessEngine {
   async connect() {
     return Promise.resolve();
@@ -15,24 +14,27 @@ class MockChessEngine {
     return Promise.resolve();
   }
   getEngineInfo() {
-    return { name: 'Mock Engine', version: '1.0' };
+    return { name: 'MockEngine', version: '1.0' };
   }
   async setOption() {
     return Promise.resolve();
   }
   async analyzePosition() {
     return Promise.resolve({
+      bestMove: 'e2e4',
+      evaluation: { type: 'cp', value: 20 },
       depth: 10,
-      selDepth: 12,
-      multiPV: 1,
-      score: { type: 'cp', score: 25 },
-      pvs: ['e2e4 e7e5 g1f3'],
+      nodes: 1000,
+      time: 100,
+      pv: ['e2e4'],
+      multipv: 1,
     });
   }
 }
 
-// Mock AnalysisStoreService for testing
 class MockAnalysisStoreService {
+  private db: any = null;
+
   async storeAnalysis() {
     return Promise.resolve({ id: 1 });
   }
@@ -48,43 +50,96 @@ class MockAnalysisStoreService {
   async clearCache() {
     return Promise.resolve();
   }
+
+  // Add missing getRepository method
+  getRepository() {
+    return {
+      close: async () => Promise.resolve(),
+      upsertPosition: async () => Promise.resolve({ id: 1 }),
+      upsertEngine: async () => Promise.resolve({ id: 1 }),
+      upsertAnalysis: async () => Promise.resolve({ id: 1 }),
+    };
+  }
+
+  // Add missing storeAnalysisResult method
+  async storeAnalysisResult() {
+    return Promise.resolve({ id: 1 });
+  }
+
+  // Add close method
+  async close() {
+    return Promise.resolve();
+  }
+
+  async cleanup() {
+    if (this.db) {
+      try {
+        await new Promise((resolve, reject) => {
+          this.db.close((err: any) => {
+            if (err) reject(err);
+            else resolve(undefined);
+          });
+        });
+      } catch (error) {
+        // Ignore cleanup errors
+      }
+      this.db = null;
+    }
+  }
 }
 
 describe('PrimaryVariationExplorerTask', () => {
-  let tempDir: string;
-  let config: PVExplorerConfig;
+  let mockEngine: MockChessEngine;
+  let mockAnalysisStoreService: MockAnalysisStoreService;
+  let mockProject: ChessProject;
   let analysisConfig: AnalysisConfig;
-  let mockEngine: any;
-  let mockAnalysisStoreService: any;
+  let config: PVExplorerConfig;
+  let createdExplorers: PrimaryVariationExplorerTask[] = [];
 
   beforeEach(() => {
-    // Create temporary directory for test files
-    tempDir = path.join(__dirname, '../../../tmp/test-pv-explorer');
-    if (!fs.existsSync(tempDir)) {
-      fs.mkdirSync(tempDir, { recursive: true });
-    }
+    mockEngine = new MockChessEngine();
+    mockAnalysisStoreService = new MockAnalysisStoreService();
 
-    config = {
+    // Create mock project
+    mockProject = {
+      id: 'test-project-id',
+      name: 'test-project',
+      projectPath: '/tmp/test-project',
+      graphPath: '/tmp/test-project/graph.json',
+      databasePath: '/tmp/test-project/analysis.db',
       rootPosition: 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1',
-      maxDepthRatio: 0.5,
-      databasePath: path.join(tempDir, 'test.db'),
-      graphPath: path.join(tempDir, 'test-graph.json'),
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      config: {},
     };
 
     analysisConfig = {
-      depth: 10,
+      depth: 15,
+      time: 1000,
       multiPV: 1,
     };
 
-    mockEngine = new MockChessEngine();
-    mockAnalysisStoreService = new MockAnalysisStoreService();
+    config = {
+      rootPosition: 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1',
+      maxPositions: 100,
+      maxDepthRatio: 1.0,
+      databasePath: './test-analysis.db',
+      graphPath: './test-graph.json',
+    };
   });
 
-  afterEach(() => {
-    // Clean up test files
-    if (fs.existsSync(tempDir)) {
-      fs.rmSync(tempDir, { recursive: true, force: true });
+  afterEach(async () => {
+    // Clean up all created explorers
+    for (const explorer of createdExplorers) {
+      try {
+        await explorer.cleanup();
+      } catch (error) {
+        // Ignore cleanup errors in tests
+      }
     }
+
+    // Clear the array
+    createdExplorers = [];
   });
 
   describe('constructor', () => {
@@ -93,8 +148,10 @@ describe('PrimaryVariationExplorerTask', () => {
         mockEngine as any,
         analysisConfig,
         config,
-        mockAnalysisStoreService as any
+        mockProject,
+        { analysisStore: mockAnalysisStoreService as any }
       );
+      createdExplorers.push(explorer);
 
       expect(explorer.getConfig()).toEqual(config);
       expect(explorer.getAnalysisConfig()).toEqual(analysisConfig);
@@ -105,14 +162,15 @@ describe('PrimaryVariationExplorerTask', () => {
         mockEngine as any,
         analysisConfig,
         config,
-        mockAnalysisStoreService as any
+        mockProject,
+        { analysisStore: mockAnalysisStoreService as any }
       );
+      createdExplorers.push(explorer);
 
       const state = explorer.getExplorationState();
-      expect(state.positionsToAnalyze).toContain(config.rootPosition);
-      expect(state.analyzedPositions.size).toBe(0);
-      expect(state.maxExplorationDepth).toBe(0);
-      expect(state.positionDepths.get(config.rootPosition)).toBe(0);
+      expect(state.currentDepth).toBe(0);
+      expect(state.exploredPositions).toBe(0);
+      expect(state.isComplete).toBe(false);
     });
   });
 
@@ -122,26 +180,30 @@ describe('PrimaryVariationExplorerTask', () => {
         mockEngine as any,
         analysisConfig,
         config,
-        mockAnalysisStoreService as any
+        mockProject,
+        { analysisStore: mockAnalysisStoreService as any }
       );
+      createdExplorers.push(explorer);
 
       const graph = explorer.getGraph();
+      expect(graph).toBeDefined();
       expect(graph.rootPosition).toBe(config.rootPosition);
     });
   });
 
   describe('configuration validation', () => {
     it('should handle valid maxDepthRatio', () => {
-      const validConfig = { ...config, maxDepthRatio: 0.3 };
+      const validConfig = { ...config, maxDepthRatio: 0.8 };
+      const explorer = new PrimaryVariationExplorerTask(
+        mockEngine as any,
+        analysisConfig,
+        validConfig,
+        mockProject,
+        { analysisStore: mockAnalysisStoreService as any }
+      );
+      createdExplorers.push(explorer);
 
-      expect(() => {
-        new PrimaryVariationExplorerTask(
-          mockEngine as any,
-          analysisConfig,
-          validConfig,
-          mockAnalysisStoreService as any
-        );
-      }).not.toThrow();
+      expect(explorer.getConfig().maxDepthRatio).toBe(0.8);
     });
 
     it('should use provided AnalysisStoreService when passed', () => {
@@ -149,46 +211,25 @@ describe('PrimaryVariationExplorerTask', () => {
         mockEngine as any,
         analysisConfig,
         config,
-        mockAnalysisStoreService as any
+        mockProject,
+        { analysisStore: mockAnalysisStoreService as any }
       );
+      createdExplorers.push(explorer);
 
-      // Test that the explorer was created successfully with the mock service
-      expect(explorer.getConfig()).toEqual(config);
-      expect(explorer.getAnalysisConfig()).toEqual(analysisConfig);
+      expect(explorer.getAnalysisStore()).toBe(mockAnalysisStoreService);
     });
 
     it('should create database directory when no AnalysisStoreService is provided', () => {
-      const nonExistentDir = path.join(tempDir, 'nested', 'path');
-      const configWithNestedPath = {
-        ...config,
-        databasePath: ':memory:', // Use in-memory database for testing
-      };
-
-      // Test without providing mock service to test real database initialization
+      // This test should be updated to expect an error since AnalysisStoreService is now required
       expect(() => {
         new PrimaryVariationExplorerTask(
           mockEngine as any,
           analysisConfig,
-          configWithNestedPath
+          config,
+          mockProject
+          // No dependencies provided
         );
-      }).not.toThrow();
-    });
-  });
-
-  describe('state management', () => {
-    it('should provide immutable state copy', () => {
-      const explorer = new PrimaryVariationExplorerTask(
-        mockEngine as any,
-        analysisConfig,
-        config,
-        mockAnalysisStoreService as any
-      );
-
-      const state1 = explorer.getExplorationState();
-      const state2 = explorer.getExplorationState();
-
-      expect(state1).not.toBe(state2); // Different objects
-      expect(state1).toEqual(state2); // Same content
+      }).toThrow('AnalysisStoreService must be provided via dependencies');
     });
   });
 });

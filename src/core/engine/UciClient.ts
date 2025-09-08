@@ -195,6 +195,7 @@ export class UciClient extends EventEmitter {
       };
 
       const bestmoveHandler = () => {
+        this._status = 'idle'; // Add this line to reset status
         this.removeListener('info', infoHandler);
         this.removeListener('bestmove', bestmoveHandler);
         resolve(results);
@@ -208,13 +209,31 @@ export class UciClient extends EventEmitter {
   async quit(): Promise<void> {
     if (this._process && this.isRunning()) {
       this.execute('quit');
+
       // Wait a bit for graceful shutdown
       await new Promise(resolve => setTimeout(resolve, 1000));
 
       if (this.isRunning()) {
         this._process.kill('SIGTERM');
+
+        // Wait another second for SIGTERM to take effect
+        await new Promise(resolve => setTimeout(resolve, 1000));
+
+        // If still running, force kill with SIGKILL
+        if (this.isRunning()) {
+          this._process.kill('SIGKILL');
+
+          // Wait a final moment for SIGKILL
+          await new Promise(resolve => setTimeout(resolve, 500));
+        }
       }
     }
+
+    // Clean up event listeners
+    if (this._process) {
+      this._process.removeAllListeners();
+    }
+
     this._process = null;
     this._status = 'disconnected';
   }

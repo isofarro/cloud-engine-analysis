@@ -1,10 +1,6 @@
+import { createAnalysisStoreService } from '../../src/core/analysis-store';
 import sqlite3 from 'sqlite3';
-import {
-  AnalysisStoreService,
-  AnalysisRepo,
-  AnalysisUtils,
-  AnalysisManager,
-} from '../../src/core/analysis-store';
+import { AnalysisUtils, AnalysisManager } from '../../src/core/analysis-store';
 import { ChessGraph } from '../../src/core/graph/ChessGraph';
 import { AnalysisResult } from '../../src/core/engine/types';
 import { Chess } from 'chess.ts';
@@ -16,10 +12,9 @@ import { Chess } from 'chess.ts';
 async function graphIntegrationExample() {
   console.log('=== Analysis Store + Chess Graph Integration Example ===\n');
 
-  // Initialize components
+  // Initialize components using factory function
   const db = new sqlite3.Database(':memory:');
-  const repo = new AnalysisRepo(db);
-  const service = new AnalysisStoreService(repo);
+  const service = await createAnalysisStoreService(db);
   const graph = new ChessGraph();
   const analysisStore = AnalysisManager.createAnalysisStore();
 

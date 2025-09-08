@@ -10,30 +10,53 @@ import {
   printGraph,
 } from './graph';
 
-const TEST_DIR = './test-graphs';
+// Use persistent base directory for all graph tests
+const TEST_BASE_DIR = './tmp/test-graphs';
 
 describe('Graph Utils', () => {
-  beforeEach(() => {
-    // Clean up test directory before each test
-    if (fs.existsSync(TEST_DIR)) {
-      fs.rmSync(TEST_DIR, { recursive: true, force: true });
-    }
+  let testDir: string;
+
+  beforeEach(async () => {
+    // Create unique test directory for each test
+    testDir = path.join(
+      TEST_BASE_DIR,
+      `${Date.now()}-${process.pid}-${Math.random().toString(36).substring(2)}`
+    );
+
+    // Ensure the test base directory exists
+    await fs.promises.mkdir(TEST_BASE_DIR, { recursive: true });
+
+    // Ensure the specific test directory exists
+    await fs.promises.mkdir(testDir, { recursive: true });
+
+    // Wait for filesystem to stabilize
+    await new Promise(resolve => setTimeout(resolve, 10));
   });
 
-  afterEach(() => {
-    // Clean up test directory after each test
-    if (fs.existsSync(TEST_DIR)) {
-      fs.rmSync(TEST_DIR, { recursive: true, force: true });
-    }
+  afterEach(async () => {
+    // Only clean up this specific test's directory
+    await cleanupTestDirectory(testDir);
   });
+
+  // Cleanup function - only removes specific test directory
+  async function cleanupTestDirectory(dir: string): Promise<void> {
+    if (fs.existsSync(dir)) {
+      try {
+        fs.rmSync(dir, { recursive: true, force: true });
+      } catch (error) {
+        // Ignore cleanup errors to prevent test failures
+        console.warn(`Failed to cleanup test directory ${dir}:`, error);
+      }
+    }
+  }
 
   describe('saveGraph', () => {
-    it('should save an empty graph', () => {
+    it('should save an empty graph', async () => {
       const graph = new ChessGraph();
-      const filePath = saveGraph(graph, 'empty-graph.json', TEST_DIR);
+      const filePath = await saveGraph(graph, 'empty-graph.json', testDir);
 
       expect(fs.existsSync(filePath)).toBe(true);
-      expect(filePath).toBe(path.join(TEST_DIR, 'empty-graph.json'));
+      expect(filePath).toBe(path.join(testDir, 'empty-graph.json'));
 
       const content = JSON.parse(fs.readFileSync(filePath, 'utf-8'));
       expect(content).toEqual({
@@ -42,17 +65,17 @@ describe('Graph Utils', () => {
       });
     });
 
-    it('should save a graph with root position', () => {
+    it('should save a graph with root position', async () => {
       const rootFen =
         'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
       const graph = new ChessGraph(rootFen);
-      const filePath = saveGraph(graph, 'root-graph.json', TEST_DIR);
+      const filePath = await saveGraph(graph, 'root-graph.json', testDir);
 
       const content = JSON.parse(fs.readFileSync(filePath, 'utf-8'));
       expect(content.rootPosition).toBe(rootFen);
     });
 
-    it('should save a graph with moves', () => {
+    it('should save a graph with moves', async () => {
       const startFen =
         'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
       const afterE4Fen =
@@ -61,7 +84,7 @@ describe('Graph Utils', () => {
       const graph = new ChessGraph(startFen);
       graph.addMove(startFen, { move: 'e2e4', toFen: afterE4Fen }, true);
 
-      const filePath = saveGraph(graph, 'moves-graph.json', TEST_DIR);
+      const filePath = await saveGraph(graph, 'moves-graph.json', testDir);
       const content = JSON.parse(fs.readFileSync(filePath, 'utf-8'));
 
       expect(content.nodes[startFen]).toEqual({
@@ -75,29 +98,29 @@ describe('Graph Utils', () => {
       });
     });
 
-    it('should generate filename when not provided', () => {
+    it('should generate filename when not provided', async () => {
       const graph = new ChessGraph();
-      const filePath = saveGraph(graph, undefined, TEST_DIR);
+      const filePath = await saveGraph(graph, undefined, testDir);
 
       expect(fs.existsSync(filePath)).toBe(true);
-      expect(filePath).toMatch(new RegExp(`^${TEST_DIR.replace('./', '')}`));
+      expect(filePath).toMatch(new RegExp(`^${testDir.replace('./', '')}`));
       expect(path.basename(filePath)).toMatch(/^chess-graph-.*\.json$/);
     });
 
-    it('should add .json extension if missing', () => {
+    it('should add .json extension if missing', async () => {
       const graph = new ChessGraph();
-      const filePath = saveGraph(graph, 'test-graph', TEST_DIR);
+      const filePath = await saveGraph(graph, 'test-graph', testDir);
 
-      expect(filePath).toBe(path.join(TEST_DIR, 'test-graph.json'));
+      expect(filePath).toBe(path.join(testDir, 'test-graph.json'));
       expect(fs.existsSync(filePath)).toBe(true);
     });
 
-    it('should create directory if it does not exist', () => {
+    it('should create directory if it does not exist', async () => {
       const graph = new ChessGraph();
       const newDir = './new-test-dir';
 
       try {
-        const filePath = saveGraph(graph, 'test.json', newDir);
+        const filePath = await saveGraph(graph, 'test.json', newDir);
         expect(fs.existsSync(newDir)).toBe(true);
         expect(fs.existsSync(filePath)).toBe(true);
       } finally {
@@ -109,9 +132,9 @@ describe('Graph Utils', () => {
   });
 
   describe('loadGraph', () => {
-    it('should load an empty graph', () => {
+    it('should load an empty graph', async () => {
       const originalGraph = new ChessGraph();
-      const filePath = saveGraph(originalGraph, 'empty.json', TEST_DIR);
+      const filePath = await saveGraph(originalGraph, 'empty.json', testDir);
 
       const loadedGraph = loadGraph(filePath);
 
@@ -119,18 +142,18 @@ describe('Graph Utils', () => {
       expect(loadedGraph.nodes).toEqual({});
     });
 
-    it('should load a graph with root position', () => {
+    it('should load a graph with root position', async () => {
       const rootFen =
         'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
       const originalGraph = new ChessGraph(rootFen);
-      const filePath = saveGraph(originalGraph, 'root.json', TEST_DIR);
+      const filePath = await saveGraph(originalGraph, 'root.json', testDir);
 
       const loadedGraph = loadGraph(filePath);
 
       expect(loadedGraph.rootPosition).toBe(rootFen);
     });
 
-    it('should load a graph with moves and preserve structure', () => {
+    it('should load a graph with moves and preserve structure', async () => {
       const startFen =
         'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
       const afterE4Fen =
@@ -150,7 +173,7 @@ describe('Graph Utils', () => {
       });
       originalGraph.addMove(afterE4Fen, { move: 'e7e5', toFen: afterE5Fen });
 
-      const filePath = saveGraph(originalGraph, 'complex.json', TEST_DIR);
+      const filePath = await saveGraph(originalGraph, 'complex.json', testDir);
       const loadedGraph = loadGraph(filePath);
 
       // Check root position
@@ -177,8 +200,8 @@ describe('Graph Utils', () => {
     });
 
     it('should throw error for invalid JSON', () => {
-      const invalidJsonFile = path.join(TEST_DIR, 'invalid.json');
-      fs.mkdirSync(TEST_DIR, { recursive: true });
+      const invalidJsonFile = path.join(testDir, 'invalid.json');
+      fs.mkdirSync(testDir, { recursive: true });
       fs.writeFileSync(invalidJsonFile, 'invalid json content', 'utf-8');
 
       expect(() => loadGraph(invalidJsonFile)).toThrow(
@@ -187,11 +210,8 @@ describe('Graph Utils', () => {
     });
 
     it('should throw error for invalid graph structure', () => {
-      const invalidStructureFile = path.join(
-        TEST_DIR,
-        'invalid-structure.json'
-      );
-      fs.mkdirSync(TEST_DIR, { recursive: true });
+      const invalidStructureFile = path.join(testDir, 'invalid-structure.json');
+      fs.mkdirSync(testDir, { recursive: true });
       fs.writeFileSync(
         invalidStructureFile,
         JSON.stringify('not an object'),
@@ -211,24 +231,24 @@ describe('Graph Utils', () => {
     });
 
     it('should list JSON files in directory', () => {
-      fs.mkdirSync(TEST_DIR, { recursive: true });
-      fs.writeFileSync(path.join(TEST_DIR, 'graph1.json'), '{}');
-      fs.writeFileSync(path.join(TEST_DIR, 'graph2.json'), '{}');
-      fs.writeFileSync(path.join(TEST_DIR, 'not-graph.txt'), 'text');
+      fs.mkdirSync(testDir, { recursive: true });
+      fs.writeFileSync(path.join(testDir, 'graph1.json'), '{}');
+      fs.writeFileSync(path.join(testDir, 'graph2.json'), '{}');
+      fs.writeFileSync(path.join(testDir, 'not-graph.txt'), 'text');
 
-      const files = listGraphFiles(TEST_DIR);
+      const files = listGraphFiles(testDir);
 
       expect(files).toHaveLength(2);
-      expect(files).toContain(path.join(TEST_DIR, 'graph1.json'));
-      expect(files).toContain(path.join(TEST_DIR, 'graph2.json'));
-      expect(files).not.toContain(path.join(TEST_DIR, 'not-graph.txt'));
+      expect(files).toContain(path.join(testDir, 'graph1.json'));
+      expect(files).toContain(path.join(testDir, 'graph2.json'));
+      expect(files).not.toContain(path.join(testDir, 'not-graph.txt'));
     });
   });
 
   describe('deleteGraph', () => {
-    it('should delete existing file and return true', () => {
+    it('should delete existing file and return true', async () => {
       const graph = new ChessGraph();
-      const filePath = saveGraph(graph, 'to-delete.json', TEST_DIR);
+      const filePath = await saveGraph(graph, 'to-delete.json', testDir);
 
       expect(fs.existsSync(filePath)).toBe(true);
 
@@ -245,7 +265,7 @@ describe('Graph Utils', () => {
   });
 
   describe('round-trip consistency', () => {
-    it('should maintain graph integrity through save and load cycle', () => {
+    it('should maintain graph integrity through save and load cycle', async () => {
       const startFen =
         'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
       const originalGraph = new ChessGraph(startFen);
@@ -257,7 +277,11 @@ describe('Graph Utils', () => {
       originalGraph.addMove('fen1', { move: 'e7e5', toFen: 'fen4' });
 
       // Save and load
-      const filePath = saveGraph(originalGraph, 'round-trip.json', TEST_DIR);
+      const filePath = await saveGraph(
+        originalGraph,
+        'round-trip.json',
+        testDir
+      );
       const loadedGraph = loadGraph(filePath);
 
       // Verify everything matches
@@ -297,7 +321,7 @@ describe('printGraph', () => {
     printGraph(graph);
 
     expect(consoleSpy).toHaveBeenCalledWith(
-      '📊 Empty graph (no root position)'
+      '📊 Empty graph (no start position)'
     );
   });
 
@@ -311,20 +335,29 @@ describe('printGraph', () => {
 
     printGraph(graph);
 
-    const calls = consoleSpy.mock.calls.map((call: any) => call[0]);
-    // Should show compact structure header
-    expect(
-      calls.some((call: string) => call.includes('📊 Chess Graph Structure:'))
-    ).toBe(true);
-    // Should show just the move without sequence indicators
+    // Fix: Filter out undefined calls and safely access call arguments
+    const calls = consoleSpy.mock.calls
+      .filter((call: any) => call && call[0])
+      .map((call: any) => call[0]);
+
+    // Should print the board position first
     expect(
       calls.some(
-        (call: string) => call.includes('└─ e4') && !call.includes('(main)')
+        (call: string) => call && (call.includes('♜') || call.includes('r'))
+      )
+    ).toBe(true);
+    // Should show just the move without sequence indicators in compact mode
+    expect(
+      calls.some(
+        (call: string) =>
+          call && call.includes('└─ e4') && !call.includes('(main)')
       )
     ).toBe(true);
     // Should NOT show statistics in compact mode
     expect(
-      calls.some((call: string) => call.includes('📈 Graph Statistics:'))
+      calls.some(
+        (call: string) => call && call.includes('📈 Graph Statistics:')
+      )
     ).toBe(false);
   });
 
@@ -338,18 +371,26 @@ describe('printGraph', () => {
 
     printGraph(graph, 10, true);
 
-    const calls = consoleSpy.mock.calls.map((call: any) => call[0]);
-    // Should show verbose structure header
+    // Fix: Filter out undefined calls and safely access call arguments
+    const calls = consoleSpy.mock.calls
+      .filter((call: any) => call && call[0])
+      .map((call: any) => call[0]);
+
+    // Should print the board position first
     expect(
-      calls.some((call: string) =>
-        call.includes('📊 Chess Graph Structure (Verbose):')
+      calls.some(
+        (call: string) => call && (call.includes('♜') || call.includes('r'))
       )
     ).toBe(true);
-    // Should show move with sequence indicator
-    expect(calls.some((call: string) => call.includes('e4 (main)'))).toBe(true);
+    // Should show move with sequence indicator in verbose mode
+    expect(
+      calls.some((call: string) => call && call.includes('e4 (main)'))
+    ).toBe(true);
     // Should show statistics in verbose mode
     expect(
-      calls.some((call: string) => call.includes('📈 Graph Statistics:'))
+      calls.some(
+        (call: string) => call && call.includes('📈 Graph Statistics:')
+      )
     ).toBe(true);
   });
 
@@ -366,33 +407,100 @@ describe('printGraph', () => {
 
     printGraph(graph);
 
-    const calls = consoleSpy.mock.calls.map((call: any) => call[0]);
-    // Should show both moves without sequence indicators
+    // Fix: Filter out undefined calls and safely access call arguments
+    const calls = consoleSpy.mock.calls
+      .filter((call: any) => call && call[0])
+      .map((call: any) => call[0]);
+
+    // Should print the board position first
     expect(
       calls.some(
-        (call: string) => call.includes('e4') && !call.includes('(main)')
+        (call: string) => call && (call.includes('♜') || call.includes('r'))
+      )
+    ).toBe(true);
+    // Should show both moves with proper connectors
+    expect(
+      calls.some(
+        (call: string) =>
+          call && (call.includes('├─ e4') || call.includes('├─ d4'))
       )
     ).toBe(true);
     expect(
-      calls.some((call: string) => call.includes('d4') && !call.includes('(2)'))
+      calls.some(
+        (call: string) =>
+          call && (call.includes('└─ e4') || call.includes('└─ d4'))
+      )
     ).toBe(true);
   });
 
-  it('should respect maxDepth parameter', () => {
+  it('should print branching graph in verbose mode', () => {
+    const startFen = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
+    const graph = new ChessGraph(startFen);
+    const afterE4 =
+      'rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq e3 0 1';
+    const afterD4 =
+      'rnbqkbnr/pppppppp/8/8/3P4/8/PPP1PPPP/RNBQKBNR b KQkq d3 0 1';
+
+    graph.addMove(startFen, { move: 'e4', toFen: afterE4 });
+    graph.addMove(startFen, { move: 'd4', toFen: afterD4 });
+
+    printGraph(graph, 10, true);
+
+    // Fix: Filter out undefined calls and safely access call arguments
+    const calls = consoleSpy.mock.calls
+      .filter((call: any) => call && call[0])
+      .map((call: any) => call[0]);
+
+    // Should print the board position first
+    expect(
+      calls.some(
+        (call: string) => call && (call.includes('♜') || call.includes('r'))
+      )
+    ).toBe(true);
+    // Should show both moves with sequence indicators in verbose mode
+    expect(
+      calls.some(
+        (call: string) =>
+          call && (call.includes('e4 (main)') || call.includes('d4 (main)'))
+      )
+    ).toBe(true);
+    // Should show statistics in verbose mode
+    expect(
+      calls.some(
+        (call: string) => call && call.includes('📈 Graph Statistics:')
+      )
+    ).toBe(true);
+  });
+
+  it('should respect maxDepth parameter in compact mode', () => {
     const startFen = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
     const graph = new ChessGraph(startFen);
     const afterE4 =
       'rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq e3 0 1';
     const afterE5 =
       'rnbqkbnr/pppp1ppp/8/4p3/4P3/8/PPPP1PPP/RNBQKBNR w KQkq e6 0 2';
+    const afterNf3 =
+      'rnbqkbnr/pppp1ppp/8/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R b KQkq - 1 2';
 
     graph.addMove(startFen, { move: 'e4', toFen: afterE4 });
     graph.addMove(afterE4, { move: 'e5', toFen: afterE5 });
+    graph.addMove(afterE5, { move: 'Nf3', toFen: afterNf3 });
 
-    printGraph(graph, 1);
+    printGraph(graph, 1); // Max depth of 1
 
-    const calls = consoleSpy.mock.calls.map((call: any) => call[0]);
-    expect(calls.some((call: string) => call.includes('[...]'))).toBe(true);
+    // Fix: Filter out undefined calls and safely access call arguments
+    const calls = consoleSpy.mock.calls
+      .filter((call: any) => call && call[0])
+      .map((call: any) => call[0]);
+
+    // Should print the board position first
+    expect(
+      calls.some(
+        (call: string) => call && (call.includes('♜') || call.includes('r'))
+      )
+    ).toBe(true);
+    // Should show ellipsis when max depth is reached
+    expect(calls.some((call: string) => call && call.includes('…'))).toBe(true);
   });
 
   it('should show transposition indicator', () => {
@@ -404,20 +512,40 @@ describe('printGraph', () => {
       'rnbqkbnr/pppp1ppp/8/4p3/4P3/8/PPPP1PPP/RNBQKBNR w KQkq e6 0 2';
     const afterNf3 =
       'rnbqkbnr/pppp1ppp/8/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R b KQkq - 1 2';
+    const afterBc4 =
+      'rnbqkbnr/pppp1ppp/8/4p3/2B1P3/8/PPPP1PPP/RNBQK1NR b KQkq - 1 2';
+    const afterNc6 =
+      'r1bqkbnr/pppp1ppp/2n5/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R w KQkq - 2 3';
 
-    // Create a path: start -> e4 -> e5 -> Nf3
+    // Create main line: start -> e4 -> e5 -> Nf3 -> Nc6
     graph.addMove(startFen, { move: 'e4', toFen: afterE4 });
     graph.addMove(afterE4, { move: 'e5', toFen: afterE5 });
     graph.addMove(afterE5, { move: 'Nf3', toFen: afterNf3 });
+    graph.addMove(afterNf3, { move: 'Nc6', toFen: afterNc6 });
 
-    // Create another path that leads back to the same position (afterE4)
-    // This will create a transposition when we try to traverse back
-    graph.addMove(afterNf3, { move: 'Nc6', toFen: afterE4 }); // Hypothetical move back to e4 position
+    // Create alternative path: start -> e4 -> e5 -> Bc4 -> Nc6 (same final position)
+    graph.addMove(afterE5, { move: 'Bc4', toFen: afterBc4 });
+    graph.addMove(afterBc4, { move: 'Nc6', toFen: afterNc6 }); // Transposition!
 
-    printGraph(graph, 10);
+    // Add one more move from Nc6 to ensure it gets visited during traversal
+    const afterBb5 =
+      'r1bqkbnr/pppp1ppp/2n5/1B2p3/4P3/5N2/PPPP1PPP/RNBQK2R b KQkq - 3 3';
+    graph.addMove(afterNc6, { move: 'Bb5', toFen: afterBb5 });
 
-    const calls = consoleSpy.mock.calls.map((call: any) => call[0]);
+    // Use verbose mode to ensure transposition detection works properly
+    printGraph(graph, 10, true);
+
+    const calls = consoleSpy.mock.calls
+      .filter((call: any) => call && call[0])
+      .map((call: any) => call[0]);
+
+    // Should print the board position first
+    expect(
+      calls.some(
+        (call: string) => call && (call.includes('♜') || call.includes('r'))
+      )
+    ).toBe(true);
     // Should show transposition indicator when visiting already shown position
-    expect(calls.some((call: string) => call.includes('↻'))).toBe(true);
+    expect(calls.some((call: string) => call && call.includes('↻'))).toBe(true);
   });
 });

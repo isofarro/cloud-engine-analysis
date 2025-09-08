@@ -216,6 +216,16 @@ export class AnalysisStoreService {
   }
 
   /**
+   * Close the analysis store and clean up resources.
+   * This includes closing database connections and clearing caches.
+   */
+  async close(): Promise<void> {
+    if (this.repo && typeof (this.repo as any).close === 'function') {
+      await (this.repo as any).close();
+    }
+  }
+
+  /**
    * Get the underlying repository for advanced operations.
    * Use sparingly - prefer the service methods when possible.
    */

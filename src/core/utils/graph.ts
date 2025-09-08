@@ -21,14 +21,19 @@ export interface SerializedChessGraph {
  * @param directory - Optional directory path. Defaults to './graphs'
  * @returns The full path of the saved file
  */
-export function saveGraph(
+export async function saveGraph(
   graph: ChessGraph,
   filename?: string,
   directory: string = './graphs'
-): string {
-  // Ensure directory exists
-  if (!fs.existsSync(directory)) {
-    fs.mkdirSync(directory, { recursive: true });
+): Promise<string> {
+  // Ensure directory exists - this needs to be awaited properly
+  try {
+    await fs.promises.mkdir(directory, { recursive: true });
+  } catch (error: any) {
+    // Ignore error if directory already exists
+    if (error.code !== 'EEXIST') {
+      throw error;
+    }
   }
 
   // Generate filename if not provided
@@ -50,8 +55,12 @@ export function saveGraph(
     nodes: graph.nodes,
   };
 
-  // Write to file
-  fs.writeFileSync(filePath, JSON.stringify(serializedGraph, null, 2), 'utf-8');
+  // Write to file asynchronously
+  await fs.promises.writeFile(
+    filePath,
+    JSON.stringify(serializedGraph, null, 2),
+    'utf-8'
+  );
 
   return filePath;
 }
@@ -152,20 +161,22 @@ export function deleteGraph(filePath: string): boolean {
  * @param graph - The ChessGraph to print
  * @param maxDepth - Maximum depth to traverse (default: 10)
  * @param verbose - If true, shows detailed info (FEN, move counts). If false, shows compact view (default: false)
+ * @param startPosition - The FEN position to start from (default: graph.rootPosition)
  */
 export function printGraph(
   graph: ChessGraph,
   maxDepth: number = 10,
-  verbose: boolean = false
+  verbose: boolean = false,
+  startPosition?: FenString
 ): void {
-  if (!graph.rootPosition) {
-    console.log('📊 Empty graph (no root position)');
+  const position = startPosition || graph.rootPosition;
+
+  if (!position) {
+    console.log('📊 Empty graph (no start position)');
     return;
   }
 
-  console.log('📊 Chess Graph Structure:');
-  console.log('Root Position:');
-  printBoard(graph.rootPosition);
+  printBoard(position);
 
   const visited = new Set<string>();
 
@@ -190,6 +201,7 @@ export function printGraph(
     }
 
     const moves = [...node.moves].sort((a, b) => a.seq - b.seq);
+    const isRootLevel = depth === 0; // Check if we're at the root position
 
     moves.forEach((move, index) => {
       const isLast = index === moves.length - 1;
@@ -232,7 +244,7 @@ export function printGraph(
         const sequenceStr = moveSequence.moves.join(' ');
 
         if (moveSequence.hitMaxDepth) {
-          console.log(`${prefix}${connector} ${sequenceStr} [...]`);
+          console.log(`${prefix}${connector} ${sequenceStr} […]`);
         } else if (moveSequence.hitVisited) {
           console.log(`${prefix}${connector} ${sequenceStr}`);
           // Continue from where we hit the visited node
@@ -314,7 +326,7 @@ export function printGraph(
     }
   }
 
-  printNode(graph.rootPosition);
+  printNode(position);
 
   // Print summary statistics only in verbose mode
   if (verbose) {

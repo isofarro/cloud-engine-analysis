@@ -10,9 +10,13 @@
     "test": "vitest",
     "test:ui": "vitest --ui",
     "test:run": "vitest run",
+    "test:coverage": "vitest run --coverage",
+    "test:watch": "vitest --watch",
+    "test:integration": "vitest run --config vitest.integration.config.ts",
     "lint": "eslint src/**/*.ts",
     "lint:fix": "eslint src/**/*.ts --fix",
-    "format": "prettier --write 'src/**/*.ts' 'examples/**/*.ts'"
+    "format": "prettier --write 'src/**/*.ts' 'examples/**/*.ts'",
+    "project": "tsx src/cli/bin.ts"
   },
   "dependencies": {
     "@types/restify": "^8.5.12",
@@ -24,6 +28,7 @@
   },
   "devDependencies": {
     "@types/node": "^22.10.5",
+    "@types/uuid": "^10.0.0",
     "@typescript-eslint/eslint-plugin": "^8.18.2",
     "@typescript-eslint/parser": "^8.18.2",
     "@vitest/ui": "^1.6.0",

@@ -1,5 +1,5 @@
 import { ChessEngine, AnalysisConfig } from '../engine/ChessEngine';
-import { UciInfoPV, AnalysisResult } from '../engine/types';
+import { UciInfoPV, UciAnalysisResult } from '../engine/types';
 import { normalizeFen } from '../utils/fen';
 
 export class PositionAnalysisTask {
@@ -16,7 +16,7 @@ export class PositionAnalysisTask {
    * @param fen The FEN string of the position to analyze
    * @returns Promise<AnalysisResult> containing depth, selDepth, multiPV, score, and PVs
    */
-  async analysePosition(fen: string): Promise<AnalysisResult> {
+  async analysePosition(fen: string): Promise<UciAnalysisResult> {
     return this.execute(fen);
   }
 
@@ -25,10 +25,9 @@ export class PositionAnalysisTask {
    * @param fen The FEN string of the position to analyze
    * @returns Promise<AnalysisResult> containing depth, selDepth, multiPV, score, and PVs
    */
-  private async execute(fen: string): Promise<AnalysisResult> {
+  private async execute(fen: string): Promise<UciAnalysisResult> {
     // Ensure engine is connected
-    const client = (this.engine as any).client;
-    if (client.getStatus() === 'disconnected') {
+    if (this.engine.getStatus() === 'disconnected') {
       await this.engine.connect();
     }
 
@@ -59,10 +58,10 @@ export class PositionAnalysisTask {
     const client = (this.engine as any).client;
 
     // Wait for engine to be ready (connected and idle)
-    if (client.getStatus() !== 'idle') {
+    if (this.engine.getStatus() !== 'idle') {
       await new Promise<void>(resolve => {
         const checkStatus = () => {
-          const status = client.getStatus();
+          const status = this.engine.getStatus();
           if (status === 'idle') {
             resolve();
           } else if (status === 'disconnected') {
@@ -76,7 +75,7 @@ export class PositionAnalysisTask {
     }
 
     return new Promise((resolve, reject) => {
-      if (client.getStatus() !== 'idle') {
+      if (this.engine.getStatus() !== 'idle') {
         reject(new Error('Engine is not idle'));
         return;
       }
@@ -84,16 +83,18 @@ export class PositionAnalysisTask {
       // Set analyzing status
       (client as any)._status = 'analyzing';
       const results: UciInfoPV[] = [];
+      const timeoutMs = (this.config.time || 30000) + 5000;
 
-      const timeout = setTimeout(
-        () => {
-          (client as any)._status = 'idle';
-          client.off('info', onInfo);
-          client.off('bestmove', onBestMove);
-          reject(new Error('Analysis timeout'));
-        },
-        (this.config.time || 30) * 1000 + 5000
-      ); // Add 5s buffer
+      const timeout = setTimeout(() => {
+        // Send stop command to engine before timing out
+        try {
+          client.execute('stop');
+        } catch (error) {}
+        (client as any)._status = 'idle';
+        client.off('info', onInfo);
+        client.off('bestmove', onBestMove);
+        reject(new Error('Analysis timeout'));
+      }, timeoutMs);
 
       const onInfo = (info: any) => {
         if (info.type === 'pv' && info.pv && info.pv.length > 0) {
@@ -101,7 +102,7 @@ export class PositionAnalysisTask {
         }
       };
 
-      const onBestMove = () => {
+      const onBestMove = (bestmove: any) => {
         clearTimeout(timeout);
         (client as any)._status = 'idle';
         client.off('info', onInfo);
@@ -124,10 +125,11 @@ export class PositionAnalysisTask {
 
         // Build and execute go command
         const goParts = ['go'];
+
         if (this.config.depth) {
           goParts.push('depth', this.config.depth.toString());
         } else if (this.config.time) {
-          goParts.push('movetime', (this.config.time * 1000).toString());
+          goParts.push('movetime', this.config.time.toString());
         } else {
           goParts.push('depth', '15'); // Default depth
         }
