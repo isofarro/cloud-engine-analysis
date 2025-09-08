@@ -83,16 +83,18 @@ export class PositionAnalysisTask {
       // Set analyzing status
       (client as any)._status = 'analyzing';
       const results: UciInfoPV[] = [];
+      const timeoutMs = (this.config.time || 30000) + 5000;
 
-      const timeout = setTimeout(
-        () => {
-          (client as any)._status = 'idle';
-          client.off('info', onInfo);
-          client.off('bestmove', onBestMove);
-          reject(new Error('Analysis timeout'));
-        },
-        (this.config.time || 30000) + 5000 // Remove * 1000, use 30000ms (30s) as default
-      ); // Add 5s buffer
+      const timeout = setTimeout(() => {
+        // Send stop command to engine before timing out
+        try {
+          client.execute('stop');
+        } catch (error) {}
+        (client as any)._status = 'idle';
+        client.off('info', onInfo);
+        client.off('bestmove', onBestMove);
+        reject(new Error('Analysis timeout'));
+      }, timeoutMs);
 
       const onInfo = (info: any) => {
         if (info.type === 'pv' && info.pv && info.pv.length > 0) {
@@ -100,7 +102,7 @@ export class PositionAnalysisTask {
         }
       };
 
-      const onBestMove = () => {
+      const onBestMove = (bestmove: any) => {
         clearTimeout(timeout);
         (client as any)._status = 'idle';
         client.off('info', onInfo);

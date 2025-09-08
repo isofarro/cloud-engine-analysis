@@ -9,6 +9,7 @@ import {
   ChessProject,
   AnalysisContext,
   AnalysisConfig,
+  AnalysisStrategy,
 } from '../../core/project/types';
 import { FenString } from '../../core/types';
 import { TaskExecutionConfig } from '../../core/project/services/AnalysisTaskExecutor';
@@ -72,12 +73,23 @@ export class AnalysisCommands {
       };
 
       // Find applicable strategies
-      const strategies =
-        this.dependencies.strategyRegistry.findApplicable(context);
+      // Replace the findApplicable logic with specific strategy selection
+      const analysisType = options.type || 'position';
+      let strategies: AnalysisStrategy[];
+
+      if (analysisType === 'pv-explore') {
+        const pvStrategy = this.dependencies.strategyRegistry.get('pv-explore');
+        strategies = pvStrategy ? [pvStrategy] : [];
+      } else {
+        // Default to basic position analysis
+        const basicStrategy =
+          this.dependencies.strategyRegistry.get('position');
+        strategies = basicStrategy ? [basicStrategy] : [];
+      }
 
       if (strategies.length === 0) {
         throw new Error(
-          `No applicable strategies found for analysis type: ${options.type}`
+          `Strategy not found for analysis type: ${analysisType}`
         );
       }
 
@@ -87,7 +99,7 @@ export class AnalysisCommands {
 
       // Check if PV exploration strategy is being used
       const isPVExploration = strategies.some(
-        strategy => strategy.name === 'pv-exploration'
+        strategy => strategy.name === 'pv-explore'
       );
 
       // Configure task execution - disable timeout for PV exploration
@@ -114,7 +126,6 @@ export class AnalysisCommands {
       console.log('Starting analysis...');
       const startTime = Date.now();
 
-      // Around line 105-110, modify the executeStrategies call:
       const result = await this.dependencies.taskExecutor.executeStrategies(
         strategies,
         fen as FenString,

@@ -108,7 +108,7 @@ class MockChessEngine {
 
             // Emit bestmove to complete analysis
             setTimeout(() => {
-              this.client.emit('bestmove', { bestmove: analysisResult.pv[0] });
+              this.client.emit('bestmove', { bestMove: analysisResult.pv[0] }); // ← Changed from 'bestmove' to 'bestMove'
             }, 10);
           }, 10);
         }

@@ -50,9 +50,10 @@ describe('StatePersistenceService', () => {
         },
       };
 
+      // Line 55
       await service.saveState(
         'test-session',
-        'pv-exploration',
+        'pv-explore', // ← Changed from 'pv-exploration' to 'pv-explore'
         'test-project',
         'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1',
         state,
@@ -82,9 +83,10 @@ describe('StatePersistenceService', () => {
         },
       };
 
+      // Line 87
       await service.saveState(
         'restore-test',
-        'pv-exploration',
+        'pv-explore', // ← Changed from 'pv-exploration' to 'pv-explore'
         'test-project',
         'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1',
         originalState,
@@ -116,18 +118,20 @@ describe('StatePersistenceService', () => {
         },
       };
 
+      // Line 121
       await service.saveState(
         'session1',
-        'pv-exploration',
+        'pv-explore', // ← Changed from 'pv-exploration' to 'pv-explore'
         'project1',
         'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1',
         testState,
         {}
       );
 
+      // Line 130
       await service.saveState(
         'session2',
-        'pv-exploration',
+        'pv-explore', // ← Changed from 'pv-exploration' to 'pv-explore'
         'project2',
         'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1',
         testState,

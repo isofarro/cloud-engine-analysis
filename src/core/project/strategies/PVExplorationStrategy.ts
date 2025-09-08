@@ -31,7 +31,7 @@ import { v4 as uuidv4 } from 'uuid';
 
 // Add to the PVExplorationStrategy class:
 export class PVExplorationStrategy implements AnalysisStrategy {
-  readonly name = 'pv-exploration';
+  readonly name = 'pv-explore'; // ← Changed from 'pv-exploration' to 'pv-explore'
   readonly description =
     'Explores chess positions by analyzing principal variations in depth';
 
