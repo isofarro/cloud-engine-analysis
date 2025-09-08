@@ -32,7 +32,8 @@ export class ProjectCommands {
     try {
       console.log(`Creating project: ${projectName}`);
 
-      const projectPath = path.join(process.cwd(), projectName);
+      // Use ./_data/projects as the base directory instead of process.cwd()
+      const projectPath = path.join('./_data/projects', projectName);
 
       // Validate FEN if provided
       const rootPosition = options.rootPosition as FenString;
@@ -219,7 +220,7 @@ export class ProjectCommands {
     options: DeleteProjectOptions
   ): Promise<CommandResult> {
     try {
-      const projectPath = path.join(process.cwd(), projectName);
+      const projectPath = path.join('./_data/projects', projectName);
 
       if (!options.force) {
         console.log(
@@ -248,7 +249,7 @@ export class ProjectCommands {
    */
   private async getProject(projectName?: string): Promise<ChessProject> {
     const projectPath = projectName
-      ? path.join(process.cwd(), projectName)
+      ? path.join('./_data/projects', projectName)
       : process.cwd();
     return await this.dependencies.projectManager.load(projectPath);
   }

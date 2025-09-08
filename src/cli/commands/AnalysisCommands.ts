@@ -36,8 +36,16 @@ export class AnalysisCommands {
       console.log(`Position: ${fen}`);
       console.log(`Analysis type: ${options.type || 'position'}`);
 
-      const projectPath = path.join(process.cwd(), projectName);
+      const projectPath = path.join('./_data/projects', projectName);
       const project = await this.dependencies.projectManager.load(projectPath);
+
+      // Load the project's graph instead of using the global CLI graph
+      const projectGraph =
+        await this.dependencies.projectManager.loadGraph(project);
+
+      // Get the project-specific analysis store (connects to analysis.db)
+      const projectAnalysisStore =
+        await this.dependencies.projectManager.getAnalysisStore(project);
 
       // Create analysis configuration
       const analysisConfig: AnalysisConfig = {
@@ -50,11 +58,11 @@ export class AnalysisCommands {
           : project.config.multiPv || 1,
       };
 
-      // Create analysis context
+      // Create analysis context with project-specific store
       const context: AnalysisContext = {
         position: fen as FenString,
-        graph: this.dependencies.graph,
-        analysisStore: this.dependencies.analysisStore,
+        graph: projectGraph, // Use project graph instead of global graph
+        analysisStore: projectAnalysisStore,
         config: analysisConfig,
         project,
         metadata: {
@@ -77,9 +85,16 @@ export class AnalysisCommands {
         `Found ${strategies.length} applicable strategy(ies): ${strategies.map(s => s.name).join(', ')}`
       );
 
-      // Configure task execution
+      // Check if PV exploration strategy is being used
+      const isPVExploration = strategies.some(
+        strategy => strategy.name === 'pv-exploration'
+      );
+
+      // Configure task execution - disable timeout for PV exploration
       const executionConfig: TaskExecutionConfig = {
-        maxExecutionTimeMs: analysisConfig.timeLimit || 300000, // 5 minutes default
+        maxExecutionTimeMs: isPVExploration
+          ? undefined
+          : analysisConfig.timeLimit || 300000, // No timeout for PV exploration
         continueOnError: true,
         maxRetries: 2,
         enableParallelExecution: false,
@@ -99,14 +114,26 @@ export class AnalysisCommands {
       console.log('Starting analysis...');
       const startTime = Date.now();
 
+      // Around line 105-110, modify the executeStrategies call:
       const result = await this.dependencies.taskExecutor.executeStrategies(
         strategies,
-        fen as FenString, // Use 'fen' parameter instead of 'position'
-        { project, config: analysisConfig } // Pass additional context
+        fen as FenString,
+        {
+          project,
+          config: analysisConfig,
+          analysisStore: projectAnalysisStore,
+          graph: projectGraph, // Use project's graph instead of global CLI graph
+        }
       );
 
       const executionTime = Date.now() - startTime;
 
+      // Save the project's graph (which now contains the move edges)
+      if (result.success) {
+        await this.dependencies.projectManager.saveGraph(project, projectGraph);
+      }
+
+      // Replace the current return statement around line 155 with:
       if (result.success) {
         console.log(
           `\n✓ Analysis completed successfully in ${executionTime}ms`
@@ -166,7 +193,7 @@ export class AnalysisCommands {
     try {
       console.log(`Analysis status for project: ${projectName}`);
 
-      const projectPath = path.join(process.cwd(), projectName);
+      const projectPath = path.join('./_data/projects', projectName);
       const project = await this.dependencies.projectManager.load(projectPath);
 
       // Get analysis statistics from the repository

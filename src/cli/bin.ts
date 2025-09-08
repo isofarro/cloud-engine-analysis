@@ -2,12 +2,19 @@
 
 import { ChessProjectCLI } from './index';
 
+async function createCli(): Promise<ChessProjectCLI> {
+  const cli = new ChessProjectCLI();
+  await cli.init();
+  return cli;
+}
+
 /**
  * CLI entry point
  */
 async function main() {
+  let cli: ChessProjectCLI | undefined;
   try {
-    const cli = new ChessProjectCLI();
+    cli = await createCli();
     await cli.run();
   } catch (error) {
     console.error(
@@ -15,6 +22,11 @@ async function main() {
       error instanceof Error ? error.message : error
     );
     process.exit(1);
+  } finally {
+    // Cleanup resources
+    if (cli) {
+      await cli.cleanup();
+    }
   }
 }
 
