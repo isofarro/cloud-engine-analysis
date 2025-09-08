@@ -34,7 +34,7 @@ export type UciInfoPV = UciOutputType &
  * Unified analysis result type that combines position analysis results
  * with engine information. Used across the application for consistency.
  */
-export interface AnalysisResult extends AnalysisBase {
+export interface UciAnalysisResult extends AnalysisBase {
   fen: string; // FEN position being analyzed
   pvs: string[]; // Array of principal variations as space-separated move strings
   time?: number; // Analysis time in milliseconds
