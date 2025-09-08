@@ -286,6 +286,11 @@ export class PVExplorationStrategy implements AnalysisStrategy {
       }
 
       try {
+        // Add user-facing log to show which position is being analyzed
+        console.log(
+          `🔍 Analyzing position at depth ${currentDepth}: ${currentPosition}...`
+        );
+
         // Use the context-aware analysis task instead of this.positionAnalysisTask
         const analysisResult =
           await contextAnalysisTask.analysePosition(currentPosition);
@@ -345,6 +350,14 @@ export class PVExplorationStrategy implements AnalysisStrategy {
       return;
     }
 
+    // Add user-facing log to show the PV result
+    const evaluation = analysisResult.score
+      ? `${analysisResult.score.type} ${analysisResult.score.score}`
+      : 'N/A';
+    console.log(
+      `📊 PV result: ${pv.split(' ').slice(0, 5).join(' ')}${pv.split(' ').length > 5 ? '...' : ''} (eval: ${evaluation})`
+    );
+
     // Add entire PV sequence to graph
     await this.addPVToGraph(context, state, position, pv);
 
@@ -373,6 +386,11 @@ export class PVExplorationStrategy implements AnalysisStrategy {
   ): Promise<void> {
     const moves = pv.split(' ').filter(move => move.trim() !== '');
     if (moves.length === 0) return;
+
+    // Add user-facing log to show moves being added to graph
+    console.log(
+      `🌳 Adding ${moves.length} moves to graph: ${moves.slice(0, 5).join(' ')}${moves.length > 5 ? '...' : ''}`
+    );
 
     const chess = new Chess(startPosition);
     let currentPosition = startPosition;
