@@ -15,6 +15,7 @@ import { LocalChessEngine } from '../core/engine/LocalChessEngine';
 import { AnalysisConfig, ChessEngine } from '../core/engine/ChessEngine';
 import { PVExplorationStrategy } from '../core/project/strategies/PVExplorationStrategy';
 import { PVExplorationConfig } from '../core/project/strategies/types';
+import { getProjectDirectory } from './utils';
 
 /**
  * Simple implementation of AnalysisStrategyRegistry for CLI
@@ -110,7 +111,7 @@ export async function createCLIDependencies(
   overrides?: Partial<CLIDependencies>
 ): Promise<CLIDependencies> {
   // Create real implementations with custom base directory
-  const projectManager = createProjectManager('./_data/projects');
+  const projectManager = createProjectManager(getProjectDirectory());
   const strategyRegistry = new SimpleAnalysisStrategyRegistry();
   const analysisStore = await createInMemoryAnalysisStoreService();
   const graph = new ChessGraph();

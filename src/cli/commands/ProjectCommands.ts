@@ -11,6 +11,7 @@ import { saveGraph, loadGraph } from '../../core/utils/graph';
 import type { Move } from '../../core/graph/types';
 import * as path from 'path';
 import { FenString } from '../../core/types';
+import { getProjectDirectory } from '../utils';
 
 /**
  * Project management command handlers
@@ -32,8 +33,8 @@ export class ProjectCommands {
     try {
       console.log(`Creating project: ${projectName}`);
 
-      // Use ./_data/projects as the base directory instead of process.cwd()
-      const projectPath = path.join('./_data/projects', projectName);
+      // Use getProjectDirectory() instead of hardcoded path
+      const projectPath = path.join(getProjectDirectory(), projectName);
 
       // Validate FEN if provided
       const rootPosition = options.rootPosition as FenString;
@@ -147,7 +148,7 @@ export class ProjectCommands {
         throw new Error('Invalid FEN positions provided');
       }
 
-      const projectPath = path.join('./_data/projects', projectName);
+      const projectPath = path.join(getProjectDirectory(), projectName);
       const project = await this.dependencies.projectManager.load(projectPath);
 
       // Load project graph
@@ -220,7 +221,7 @@ export class ProjectCommands {
     options: DeleteProjectOptions
   ): Promise<CommandResult> {
     try {
-      const projectPath = path.join('./_data/projects', projectName);
+      const projectPath = path.join(getProjectDirectory(), projectName);
 
       if (!options.force) {
         console.log(
@@ -249,7 +250,7 @@ export class ProjectCommands {
    */
   private async getProject(projectName?: string): Promise<ChessProject> {
     const projectPath = projectName
-      ? path.join('./_data/projects', projectName)
+      ? path.join(getProjectDirectory(), projectName)
       : process.cwd();
     return await this.dependencies.projectManager.load(projectPath);
   }

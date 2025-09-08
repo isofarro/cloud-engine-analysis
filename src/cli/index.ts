@@ -3,6 +3,7 @@ import { ProjectCommands } from './commands/ProjectCommands';
 import { AnalysisCommands } from './commands/AnalysisCommands';
 import { AnalyzeOptions, CLIDependencies } from './types';
 import { createCLIDependencies } from './dependencies';
+import { getProjectDirectory } from './utils';
 
 /**
  * Main CLI application entry point
@@ -84,7 +85,7 @@ export class ChessProjectCLI {
       .option(
         '--path <directory>',
         'Base directory to search',
-        './_data/projects'
+        getProjectDirectory()
       )
       .action(options => {
         this.projectCommands!.list(options);
@@ -105,7 +106,13 @@ export class ChessProjectCLI {
       .description('Add a move edge to the project graph')
       .option('--primary', 'Mark this move as the primary/main line move')
       .action(async (projectName, fromFen, move, toFen, options) => {
-        await this.projectCommands!.addMove(projectName, fromFen, move, toFen, options.primary);
+        await this.projectCommands!.addMove(
+          projectName,
+          fromFen,
+          move,
+          toFen,
+          options.primary
+        );
       });
 
     // Analysis management commands

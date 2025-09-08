@@ -16,6 +16,7 @@ import { TaskExecutionConfig } from '../../core/project/services/AnalysisTaskExe
 import { AnalysisChecker } from '../../core/project/services/AnalysisChecker';
 import * as path from 'path';
 import * as fs from 'fs/promises';
+import { getProjectDirectory } from '../utils';
 
 export class AnalysisCommands {
   private dependencies: CLIDependencies;
@@ -37,7 +38,7 @@ export class AnalysisCommands {
       console.log(`Position: ${fen}`);
       console.log(`Analysis type: ${options.type || 'position'}`);
 
-      const projectPath = path.join('./_data/projects', projectName);
+      const projectPath = path.join(getProjectDirectory(), projectName);
       const project = await this.dependencies.projectManager.load(projectPath);
 
       // Load the project's graph instead of using the global CLI graph
@@ -204,7 +205,7 @@ export class AnalysisCommands {
     try {
       console.log(`Analysis status for project: ${projectName}`);
 
-      const projectPath = path.join('./_data/projects', projectName);
+      const projectPath = path.join(getProjectDirectory(), projectName);
       const project = await this.dependencies.projectManager.load(projectPath);
 
       // Get analysis statistics from the repository
@@ -291,9 +292,7 @@ export class AnalysisCommands {
     options: ExportOptions
   ): Promise<CommandResult> {
     try {
-      console.log(`Exporting analysis for project: ${projectName}`);
-
-      const projectPath = path.join(process.cwd(), projectName);
+      const projectPath = path.join(getProjectDirectory(), projectName);
       const project = await this.dependencies.projectManager.load(projectPath);
 
       const format = options.format || 'json';
