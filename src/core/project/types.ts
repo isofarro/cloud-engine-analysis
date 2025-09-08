@@ -1,10 +1,7 @@
 import { FenString } from '../types';
 import { ChessGraph } from '../graph/ChessGraph';
 import { AnalysisStoreService } from '../analysis-store/AnalysisStoreService';
-import { AnalysisResult } from '../engine/types';
-
-// Re-export AnalysisResult so other files can import it from this module
-export { AnalysisResult };
+import { UciAnalysisResult } from '../engine/types';
 
 /**
  * Represents a chess project with its associated graph and analysis data
@@ -70,7 +67,7 @@ export interface AnalysisStrategy {
    * @param context Analysis execution context
    * @returns Promise resolving to analysis results
    */
-  execute(context: AnalysisContext): Promise<AnalysisResult[]>;
+  execute(context: AnalysisContext): Promise<UciAnalysisResult[]>;
 
   /**
    * Validate if the strategy can be applied to the given context
@@ -235,6 +232,33 @@ export interface ProjectManager {
    * @returns True if valid project
    */
   isValidProject(projectPath: string): Promise<boolean>;
+
+  /**
+   * Get analysis store service for project
+   * @param project Project to get analysis store for
+   * @returns Analysis store service connected to project's database
+   */
+  getAnalysisStore(project: ChessProject): Promise<AnalysisStoreService>;
+
+  /**
+   * Close analysis store service (cleanup database connections)
+   * @param analysisStore Analysis store service to close
+   */
+  closeAnalysisStore(analysisStore: AnalysisStoreService): Promise<void>;
+
+  /**
+   * Load chess graph from project
+   * @param project Project to load graph from
+   * @returns Chess graph
+   */
+  loadGraph(project: ChessProject): Promise<ChessGraph>;
+
+  /**
+   * Save chess graph to project
+   * @param project Project to save graph to
+   * @param graph Chess graph to save
+   */
+  saveGraph(project: ChessProject, graph: ChessGraph): Promise<void>;
 }
 
 /**

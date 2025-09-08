@@ -4,7 +4,7 @@ import {
   AnalysisConfig,
   ExecutionEstimate,
 } from '../types';
-import { AnalysisResult } from '../../engine/types';
+import { UciAnalysisResult } from '../../engine/types';
 import { FenString } from '../../types';
 import { Chess } from 'chess.ts';
 import { convertMoveToSan } from '../../utils/move';
@@ -61,7 +61,7 @@ export class PVExplorationStrategy implements AnalysisStrategy {
   /**
    * Execute analysis with state persistence support
    */
-  async execute(context: AnalysisContext): Promise<AnalysisResult[]> {
+  async execute(context: AnalysisContext): Promise<UciAnalysisResult[]> {
     // Generate session ID for this analysis run
     this.currentSessionId = uuidv4();
 
@@ -70,7 +70,6 @@ export class PVExplorationStrategy implements AnalysisStrategy {
 
     let state: PVExplorationState;
     if (resumeState) {
-      console.log(`🔄 Resuming analysis from saved state...`);
       state = this.persistenceService!.deserializeState(resumeState.state); // Remove the extra .state
     } else {
       // Initialize new state
@@ -107,7 +106,7 @@ export class PVExplorationStrategy implements AnalysisStrategy {
 
     try {
       const strategyContext = context as StrategyContext;
-      const results: AnalysisResult[] = [];
+      const results: UciAnalysisResult[] = [];
 
       // Initialize exploration state
       const state: PVExplorationState = {
@@ -154,7 +153,7 @@ export class PVExplorationStrategy implements AnalysisStrategy {
         this.persistenceService.stopAutoSave();
       }
     }
-  } // Close the execute method here
+  }
 
   /**
    * Check if strategy can be applied to the given context
@@ -204,10 +203,23 @@ export class PVExplorationStrategy implements AnalysisStrategy {
   private async analyzeRootPosition(
     context: AnalysisContext,
     state: PVExplorationState
-  ): Promise<AnalysisResult> {
-    console.log('🔍 Analyzing root position...');
+  ): Promise<UciAnalysisResult> {
+    // Transform context.config (project AnalysisConfig) to engine AnalysisConfig
+    const engineConfig = {
+      depth: context.config?.timeLimit
+        ? undefined
+        : context.config?.depth || this.analysisConfig.depth,
+      multiPV: context.config?.multiPv || this.analysisConfig.multiPv,
+      time: context.config?.timeLimit || this.analysisConfig.timeLimit, // Keep in milliseconds, don't divide by 1000
+    };
 
-    const analysisResult = await this.positionAnalysisTask.analysePosition(
+    // Create a position analysis task with the engine config
+    const contextAnalysisTask = new PositionAnalysisTask(
+      this.engine,
+      engineConfig
+    );
+
+    const analysisResult = await contextAnalysisTask.analysePosition(
       context.position
     );
 
@@ -215,9 +227,6 @@ export class PVExplorationStrategy implements AnalysisStrategy {
     state.maxDepth = Math.floor(
       analysisResult.depth * this.config.maxDepthRatio
     );
-
-    console.log(`📏 Initial analysis depth: ${analysisResult.depth}`);
-    console.log(`🎯 Max exploration depth: ${state.maxDepth}`);
 
     // Process the root analysis
     await this.processPositionAnalysis(
@@ -237,9 +246,23 @@ export class PVExplorationStrategy implements AnalysisStrategy {
     context: AnalysisContext,
     state: PVExplorationState,
     onProgress?: (progress: any) => void
-  ): Promise<AnalysisResult[]> {
-    console.log('🚀 Starting exploration queue processing...');
-    const results: AnalysisResult[] = [];
+  ): Promise<UciAnalysisResult[]> {
+    const results: UciAnalysisResult[] = [];
+
+    // Transform context.config (project AnalysisConfig) to engine AnalysisConfig
+    const engineConfig = {
+      depth: context.config?.timeLimit
+        ? undefined
+        : context.config?.depth || this.analysisConfig.depth,
+      multiPV: context.config?.multiPv || this.analysisConfig.multiPv,
+      time: context.config?.timeLimit || this.analysisConfig.timeLimit, // Keep in milliseconds, don't divide by 1000
+    };
+
+    // Create a position analysis task with the engine config
+    const contextAnalysisTask = new PositionAnalysisTask(
+      this.engine,
+      engineConfig
+    );
 
     while (state.positionsToAnalyze.length > 0) {
       const currentPosition = state.positionsToAnalyze.shift()!;
@@ -251,9 +274,6 @@ export class PVExplorationStrategy implements AnalysisStrategy {
       }
 
       if (currentDepth >= state.maxDepth) {
-        console.log(
-          `⏭️  Skipping position at depth ${currentDepth} (beyond limit ${state.maxDepth})`
-        );
         continue;
       }
 
@@ -262,19 +282,13 @@ export class PVExplorationStrategy implements AnalysisStrategy {
         this.config.maxPositions &&
         state.stats.totalAnalyzed >= this.config.maxPositions
       ) {
-        console.log(
-          `⏭️  Reached maximum position limit (${this.config.maxPositions})`
-        );
         break;
       }
 
-      console.log(`\n🔍 Analyzing position at depth ${currentDepth}...`);
-      console.log(`📍 FEN: ${currentPosition}`);
-
       try {
-        // Analyze the position
+        // Use the context-aware analysis task instead of this.positionAnalysisTask
         const analysisResult =
-          await this.positionAnalysisTask.analysePosition(currentPosition);
+          await contextAnalysisTask.analysePosition(currentPosition);
         results.push(analysisResult);
 
         // Process the analysis result
@@ -318,7 +332,7 @@ export class PVExplorationStrategy implements AnalysisStrategy {
     context: AnalysisContext,
     state: PVExplorationState,
     position: FenString,
-    analysisResult: AnalysisResult
+    analysisResult: UciAnalysisResult
   ): Promise<void> {
     // Mark position as analyzed
     state.analyzedPositions.add(position);
@@ -328,19 +342,23 @@ export class PVExplorationStrategy implements AnalysisStrategy {
     // Extract principal variation
     const pv = analysisResult.pvs[0];
     if (!pv || pv.trim() === '') {
-      console.log('⚠️  No principal variation found, skipping...');
       return;
     }
-
-    console.log(`📝 Principal Variation: ${pv}`);
 
     // Add entire PV sequence to graph
     await this.addPVToGraph(context, state, position, pv);
 
+    // Save graph immediately after adding PV
+    try {
+      // Use the saveGraph utility directly
+      const { saveGraph } = await import('../../utils/graph');
+      await saveGraph(context.graph, 'graph.json', context.project.projectPath);
+    } catch (error) {
+      console.error('❌ Failed to save graph:', error);
+    }
+
     // Store analysis in repository
     await this.storeAnalysisResult(context, analysisResult);
-
-    console.log(`✅ Position processed and graph updated`);
   }
 
   /**
@@ -367,7 +385,6 @@ export class PVExplorationStrategy implements AnalysisStrategy {
         // Convert UCI moves to SAN format
         const moveResult = convertMoveToSan(chess, move);
         if (!moveResult) {
-          console.log(`  ⚠️  Invalid move '${move}', stopping PV processing`);
           break;
         }
         const nextPosition = chess.fen();
@@ -383,8 +400,6 @@ export class PVExplorationStrategy implements AnalysisStrategy {
           true // true = primary, demotes existing primary to alternative
         );
 
-        console.log(`  ➕ Added move: ${sanMove} (${nextPosition})`);
-
         // Calculate depth for next position (each move in PV is one ply deeper)
         const nextDepth = currentDepth + 1;
         state.positionDepths.set(nextPosition, nextDepth);
@@ -397,16 +412,12 @@ export class PVExplorationStrategy implements AnalysisStrategy {
         ) {
           state.positionsToAnalyze.push(nextPosition);
           state.stats.totalDiscovered++;
-          console.log(
-            `  📋 Queued position for analysis at depth ${nextDepth}`
-          );
         }
 
         // Update current depth for next iteration
         currentDepth = nextDepth;
         currentPosition = nextPosition;
       } catch (error) {
-        console.log(`  ⚠️  Invalid move '${move}', stopping PV processing`);
         break;
       }
     }
@@ -417,7 +428,7 @@ export class PVExplorationStrategy implements AnalysisStrategy {
    */
   private async storeAnalysisResult(
     context: AnalysisContext,
-    analysisResult: AnalysisResult
+    analysisResult: UciAnalysisResult
   ): Promise<void> {
     try {
       // Get engine slug from engine info
@@ -464,21 +475,6 @@ export class PVExplorationStrategy implements AnalysisStrategy {
 
     return null;
   }
-
-  // Remove the parseEngineSlug method entirely - it's now handled by AnalysisStoreService
-  // DELETE THESE LINES:
-  // /**
-  //  * Parse engine slug into name and version components
-  //  */
-  // private parseEngineSlug(slug: string): [string, string] {
-  //   const parts = slug.split('-');
-  //   if (parts.length >= 2) {
-  //     const version = parts[parts.length - 1];
-  //     const name = parts.slice(0, -1).join('-');
-  //     return [name, version];
-  //   }
-  //   return [slug, '1.0'];
-  // }
 
   /**
    * Get current exploration state (for monitoring/debugging)

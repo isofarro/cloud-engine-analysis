@@ -1,5 +1,5 @@
 import { ChessEngine, AnalysisConfig } from '../engine/ChessEngine';
-import { UciInfoPV, AnalysisResult } from '../engine/types';
+import { UciInfoPV, UciAnalysisResult } from '../engine/types';
 import { normalizeFen } from '../utils/fen';
 
 export class PositionAnalysisTask {
@@ -16,7 +16,7 @@ export class PositionAnalysisTask {
    * @param fen The FEN string of the position to analyze
    * @returns Promise<AnalysisResult> containing depth, selDepth, multiPV, score, and PVs
    */
-  async analysePosition(fen: string): Promise<AnalysisResult> {
+  async analysePosition(fen: string): Promise<UciAnalysisResult> {
     return this.execute(fen);
   }
 
@@ -25,7 +25,7 @@ export class PositionAnalysisTask {
    * @param fen The FEN string of the position to analyze
    * @returns Promise<AnalysisResult> containing depth, selDepth, multiPV, score, and PVs
    */
-  private async execute(fen: string): Promise<AnalysisResult> {
+  private async execute(fen: string): Promise<UciAnalysisResult> {
     // Ensure engine is connected
     if (this.engine.getStatus() === 'disconnected') {
       await this.engine.connect();
@@ -91,7 +91,7 @@ export class PositionAnalysisTask {
           client.off('bestmove', onBestMove);
           reject(new Error('Analysis timeout'));
         },
-        (this.config.time || 30) * 1000 + 5000
+        (this.config.time || 30000) + 5000 // Remove * 1000, use 30000ms (30s) as default
       ); // Add 5s buffer
 
       const onInfo = (info: any) => {
@@ -123,10 +123,11 @@ export class PositionAnalysisTask {
 
         // Build and execute go command
         const goParts = ['go'];
+
         if (this.config.depth) {
           goParts.push('depth', this.config.depth.toString());
         } else if (this.config.time) {
-          goParts.push('movetime', (this.config.time * 1000).toString());
+          goParts.push('movetime', this.config.time.toString());
         } else {
           goParts.push('depth', '15'); // Default depth
         }

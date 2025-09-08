@@ -1,12 +1,12 @@
 import {
   AnalysisStrategy,
   AnalysisContext,
-  AnalysisResult,
   AnalysisDependencies,
   ExecutionEstimate,
 } from '../types';
 import { FenString } from '../../types';
 import { ProgressUpdate } from '../strategies/types';
+import { UciAnalysisResult } from '../../engine';
 
 /**
  * Configuration for task execution
@@ -39,7 +39,7 @@ export interface TaskExecutionResult {
   success: boolean;
 
   /** Analysis results from all strategies */
-  results: AnalysisResult[];
+  results: UciAnalysisResult[];
 
   /** Execution metadata */
   metadata: {
@@ -100,14 +100,15 @@ export class AnalysisTaskExecutor {
     config: TaskExecutionConfig = {}
   ) {
     this.dependencies = dependencies;
+
     this.config = {
-      maxExecutionTimeMs: 300000, // 5 minutes default
-      continueOnError: true,
-      maxRetries: 2,
-      retryDelayMs: 1000,
-      enableParallelExecution: false,
-      maxConcurrency: 3,
-      ...config,
+      // Fix: Don't set default here, let undefined pass through
+      maxExecutionTimeMs: config.maxExecutionTimeMs,
+      continueOnError: config.continueOnError ?? true,
+      maxRetries: config.maxRetries ?? 2,
+      retryDelayMs: config.retryDelayMs ?? 1000,
+      enableParallelExecution: config.enableParallelExecution ?? false,
+      maxConcurrency: config.maxConcurrency ?? 3,
     };
   }
 
@@ -136,7 +137,7 @@ export class AnalysisTaskExecutor {
     additionalContext?: Partial<AnalysisContext>
   ): Promise<TaskExecutionResult> {
     const startTime = Date.now();
-    const results: AnalysisResult[] = [];
+    const results: UciAnalysisResult[] = [];
     const errors: TaskExecutionError[] = [];
     const progressUpdates: ProgressUpdate[] = [];
     const estimates: ExecutionEstimate[] = [];
@@ -248,7 +249,7 @@ export class AnalysisTaskExecutor {
   private async executeStrategiesSequentially(
     strategies: AnalysisStrategy[],
     context: AnalysisContext,
-    results: AnalysisResult[],
+    results: UciAnalysisResult[],
     errors: TaskExecutionError[],
     progressUpdates: ProgressUpdate[]
   ): Promise<void> {
@@ -294,7 +295,7 @@ export class AnalysisTaskExecutor {
   private async executeStrategiesInParallel(
     strategies: AnalysisStrategy[],
     context: AnalysisContext,
-    results: AnalysisResult[],
+    results: UciAnalysisResult[],
     errors: TaskExecutionError[],
     progressUpdates: ProgressUpdate[]
   ): Promise<void> {
@@ -353,27 +354,36 @@ export class AnalysisTaskExecutor {
   private async executeStrategyWithRetry(
     strategy: AnalysisStrategy,
     context: AnalysisContext
-  ): Promise<AnalysisResult[]> {
+  ): Promise<UciAnalysisResult[]> {
     const maxRetries = this.config.maxRetries || 0;
     let lastError: Error;
 
     for (let attempt = 1; attempt <= maxRetries + 1; attempt++) {
       try {
-        // Add timeout wrapper
-        const timeoutPromise = new Promise<never>((_, reject) => {
-          setTimeout(() => {
-            reject(
-              new Error(
-                `Strategy execution timeout after ${this.config.maxExecutionTimeMs}ms`
-              )
-            );
-          }, this.config.maxExecutionTimeMs);
-        });
-
         const executionPromise = strategy.execute(context);
-        const results = await Promise.race([executionPromise, timeoutPromise]);
 
-        return results;
+        // Only add timeout wrapper if maxExecutionTimeMs is defined
+        if (this.config.maxExecutionTimeMs) {
+          const timeoutPromise = new Promise<never>((_, reject) => {
+            setTimeout(() => {
+              reject(
+                new Error(
+                  `Strategy execution timeout after ${this.config.maxExecutionTimeMs}ms`
+                )
+              );
+            }, this.config.maxExecutionTimeMs);
+          });
+
+          const results = await Promise.race([
+            executionPromise,
+            timeoutPromise,
+          ]);
+          return results;
+        } else {
+          // No timeout - let the strategy run indefinitely
+          const results = await executionPromise;
+          return results;
+        }
       } catch (error) {
         lastError = error as Error;
         this.logError(strategy.name, lastError, attempt, attempt > 1);
