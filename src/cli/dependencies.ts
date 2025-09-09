@@ -57,9 +57,9 @@ class BasicPositionAnalysisStrategy implements AnalysisStrategy {
 
   async execute(context: AnalysisContext): Promise<UciAnalysisResult[]> {
     const analysisConfig: AnalysisConfig = {
-      depth: context.config.timeLimit ? undefined : context.config.depth || 15,
+      depth: context.config.time ? undefined : context.config.depth || 15,
       multiPV: context.config.multiPv || 1,
-      time: context.config.timeLimit, // This is already in milliseconds from AnalysisCommands
+      time: context.config.time, // Fix: Use 'time' instead of 'timeLimit'
     };
 
     const task = new PositionAnalysisTask(this.engine, analysisConfig);
@@ -140,7 +140,6 @@ export async function createCLIDependencies(
 
   const pvStrategyConfig: PVExplorationConfig = {
     maxDepthRatio: 0.6,
-    maxPositions: 100,
     exploreAlternatives: false,
     alternativeThreshold: 50,
   };

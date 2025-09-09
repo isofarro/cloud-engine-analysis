@@ -51,23 +51,39 @@ export class ChessProjectCLI {
     this.program
       .command('analyze <project-name> <fen>')
       .alias('analyse')
-      .description('Analyze a chess position in a project')
+      .description('Analyze a single chess position')
       .option('-d, --depth <number>', 'Analysis depth')
       .option('-t, --time <seconds>', 'Analysis time limit in seconds')
       .option('-m, --multipv <number>', 'Number of principal variations')
-      .option(
-        '--type <type>',
-        'Analysis type: position, pv-explore, explore',
-        'position'
-      )
       .action(async (projectName, fen, options) => {
         const analysisOptions: AnalyzeOptions = {
-          type: options.type as 'position' | 'pv-explore' | 'explore',
           depth: options.depth,
           time: options.time,
           multipv: options.multipv,
         };
         await this.analysisCommands!.analyze(projectName, fen, analysisOptions);
+      });
+
+    // Explore command - multi-position strategies
+    this.program
+      .command('explore <project-name> <fen>')
+      .description(
+        'Explore chess positions using iterative analysis strategies'
+      )
+      .option('-d, --depth <number>', 'Analysis depth')
+      .option('-t, --time <seconds>', 'Analysis time limit in seconds')
+      .option('-m, --multipv <number>', 'Number of principal variations')
+      .option('--maxPositions <number>', 'Maximum positions to explore')
+      .option('--strategy <strategy>', 'Exploration strategy', 'pv-explore')
+      .action(async (projectName, fen, options) => {
+        const exploreOptions: ExploreOptions = {
+          strategy: options.strategy as 'pv-explore',
+          depth: options.depth,
+          time: options.time,
+          multipv: options.multipv,
+          maxPositions: options.maxPositions,
+        };
+        await this.analysisCommands!.explore(projectName, fen, exploreOptions);
       });
 
     // Engine command

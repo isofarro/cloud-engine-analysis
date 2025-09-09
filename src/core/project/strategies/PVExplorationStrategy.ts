@@ -206,11 +206,11 @@ export class PVExplorationStrategy implements AnalysisStrategy {
   ): Promise<UciAnalysisResult> {
     // Transform context.config (project AnalysisConfig) to engine AnalysisConfig
     const engineConfig = {
-      depth: context.config?.timeLimit
+      depth: context.config?.time
         ? undefined
         : context.config?.depth || this.analysisConfig.depth,
       multiPV: context.config?.multiPv || this.analysisConfig.multiPv,
-      time: context.config?.timeLimit || this.analysisConfig.timeLimit, // Keep in milliseconds, don't divide by 1000
+      time: context.config?.time || this.analysisConfig.time,
     };
 
     // Create a position analysis task with the engine config
@@ -251,11 +251,11 @@ export class PVExplorationStrategy implements AnalysisStrategy {
 
     // Transform context.config (project AnalysisConfig) to engine AnalysisConfig
     const engineConfig = {
-      depth: context.config?.timeLimit
+      depth: context.config?.time
         ? undefined
         : context.config?.depth || this.analysisConfig.depth,
       multiPV: context.config?.multiPv || this.analysisConfig.multiPv,
-      time: context.config?.timeLimit || this.analysisConfig.timeLimit, // Keep in milliseconds, don't divide by 1000
+      time: context.config?.time || this.analysisConfig.time,
     };
 
     // Create a position analysis task with the engine config
@@ -279,8 +279,8 @@ export class PVExplorationStrategy implements AnalysisStrategy {
 
       // Check position limit
       if (
-        this.config.maxPositions &&
-        state.stats.totalAnalyzed >= this.config.maxPositions
+        context.metadata?.maxPositions &&
+        state.stats.totalAnalyzed >= context.metadata.maxPositions
       ) {
         break;
       }

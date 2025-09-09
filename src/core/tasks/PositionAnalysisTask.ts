@@ -83,7 +83,8 @@ export class PositionAnalysisTask {
       // Set analyzing status
       (client as any)._status = 'analyzing';
       const results: UciInfoPV[] = [];
-      const timeoutMs = (this.config.time || 30000) + 5000;
+      const timeoutMs =
+        (this.config.time ? this.config.time * 1000 : 30000) + 5000;
 
       const timeout = setTimeout(() => {
         // Send stop command to engine before timing out
@@ -129,7 +130,7 @@ export class PositionAnalysisTask {
         if (this.config.depth) {
           goParts.push('depth', this.config.depth.toString());
         } else if (this.config.time) {
-          goParts.push('movetime', this.config.time.toString());
+          goParts.push('movetime', (this.config.time * 1000).toString());
         } else {
           goParts.push('depth', '15'); // Default depth
         }

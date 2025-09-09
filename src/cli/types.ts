@@ -19,10 +19,20 @@ export interface CreateProjectOptions {
  * CLI command options for analysis
  */
 export interface AnalyzeOptions {
-  type?: 'position' | 'pv-explore' | 'explore';
   depth?: string;
   time?: string;
   multipv?: string;
+}
+
+/**
+ * CLI command options for exploration
+ */
+export interface ExploreOptions {
+  strategy?: 'pv-explore';
+  depth?: string;
+  time?: string;
+  multipv?: string;
+  maxPositions?: string;
 }
 
 /**

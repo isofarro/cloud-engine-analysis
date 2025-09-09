@@ -4,6 +4,7 @@ import {
   ExportOptions,
   CommandResult,
   ProgressCallback,
+  ExploreOptions,
 } from '../types';
 import {
   ChessProject,
@@ -14,6 +15,7 @@ import {
 import { FenString } from '../../core/types';
 import { TaskExecutionConfig } from '../../core/project/services/AnalysisTaskExecutor';
 import { AnalysisChecker } from '../../core/project/services/AnalysisChecker';
+import { loadGraph, saveGraph } from '../../core/utils/graph';
 import * as path from 'path';
 import * as fs from 'fs/promises';
 import { getProjectDirectory } from '../utils';
@@ -26,7 +28,10 @@ export class AnalysisCommands {
   }
 
   /**
-   * Analyze a position in a project
+   * Analyze a single position in a project
+   */
+  /**
+   * Analyze a single position using basic position analysis
    */
   public async analyze(
     projectName: string,
@@ -35,164 +40,172 @@ export class AnalysisCommands {
   ): Promise<CommandResult> {
     try {
       console.log(`Analyzing position in project: ${projectName}`);
-      console.log(`Position: ${fen}`);
-      console.log(`Analysis type: ${options.type || 'position'}`);
+      console.log(`Position (FEN): ${fen}`);
 
       const projectPath = path.join(getProjectDirectory(), projectName);
       const project = await this.dependencies.projectManager.load(projectPath);
-
-      // Load the project's graph instead of using the global CLI graph
-      const projectGraph =
-        await this.dependencies.projectManager.loadGraph(project);
-
-      // Get the project-specific analysis store (connects to analysis.db)
-      const projectAnalysisStore =
-        await this.dependencies.projectManager.getAnalysisStore(project);
+      // Fix: Use loadGraph function instead of graph.load method
+      const projectGraph = await loadGraph(project.graphPath);
+      const analysisStore = this.dependencies.analysisStore;
 
       // Create analysis configuration
       const analysisConfig: AnalysisConfig = {
-        depth: options.depth
-          ? parseInt(options.depth)
-          : project.config.analysisDepth || 15,
-        timeLimit: options.time ? parseInt(options.time) * 1000 : undefined,
-        multiPv: options.multipv
-          ? parseInt(options.multipv)
-          : project.config.multiPv || 1,
+        depth: options.depth ? parseInt(options.depth) : undefined,
+        // Fix: Use 'time' property (in seconds)
+        time: options.time ? parseInt(options.time) : undefined,
+        multiPv: options.multipv ? parseInt(options.multipv) : 1,
       };
 
-      // Create analysis context with project-specific store
+      console.log(`Analysis config:`, analysisConfig);
+
+      // Get the position strategy (always 'position' for analyze command)
+      const strategy = this.dependencies.strategyRegistry.get('position');
+      if (!strategy) {
+        throw new Error('Position analysis strategy not found');
+      }
+
+      // Create analysis context
+      const context: AnalysisContext = {
+        // Fix: Use position instead of fen
+        position: fen as FenString,
+        config: analysisConfig,
+        graph: projectGraph,
+        analysisStore,
+        // Add required project and metadata fields
+        project,
+        metadata: {},
+      };
+
+      // Configure task execution
+      const taskConfig: TaskExecutionConfig = {
+        // Fix: Use maxExecutionTimeMs instead of disableTimeout
+        maxExecutionTimeMs: undefined,
+      };
+
+      // Execute analysis
+      console.log('Starting position analysis...');
+      // Fix: executeStrategies expects (strategies, position, additionalContext)
+      await this.dependencies.taskExecutor.executeStrategies(
+        [strategy],
+        fen as FenString,
+        context
+      );
+
+      // Fix: Use saveGraph function instead of graph.save method
+      await saveGraph(
+        projectGraph,
+        'graph.json',
+        path.dirname(project.graphPath)
+      );
+
+      // Save the updated project graph
+      await saveGraph(
+        projectGraph,
+        'graph.json',
+        path.dirname(project.graphPath)
+      );
+
+      console.log('✓ Analysis completed successfully');
+      return {
+        success: true,
+        message: 'Position analysis completed',
+        data: { fen, strategy: 'position' },
+      };
+    } catch (error) {
+      const message = `Failed to analyze position: ${
+        error instanceof Error ? error.message : error
+      }`;
+      console.error(message);
+      return { success: false, error: error as Error, message };
+    }
+  }
+
+  /**
+   * Explore positions using multi-position strategies
+   */
+  public async explore(
+    projectName: string,
+    fen: string,
+    options: ExploreOptions
+  ): Promise<CommandResult> {
+    try {
+      console.log(`Exploring positions in project: ${projectName}`);
+      console.log(`Starting position (FEN): ${fen}`);
+
+      const projectPath = path.join(getProjectDirectory(), projectName);
+      const project = await this.dependencies.projectManager.load(projectPath);
+      const projectGraph = await loadGraph(project.graphPath);
+      const analysisStore = this.dependencies.analysisStore;
+
+      // Create analysis configuration for explore method
+      const analysisConfig: AnalysisConfig = {
+        depth: options.depth ? parseInt(options.depth) : undefined,
+        // Fix: Use 'time' property (in seconds)
+        time: options.time ? parseInt(options.time) : undefined,
+        multiPv: options.multipv ? parseInt(options.multipv) : 1,
+      };
+
+      // Parse maxPositions if provided
+      const maxPositions = options.maxPositions
+        ? parseInt(options.maxPositions)
+        : undefined;
+
+      console.log(`Analysis config:`, analysisConfig);
+      if (maxPositions !== undefined) {
+        console.log(`Max positions limit: ${maxPositions}`);
+      } else {
+        console.log('No position limit set');
+      }
+
+      // Get the exploration strategy (default to 'pv-explore')
+      const strategyName = options.strategy || 'pv-explore';
+      const strategy = this.dependencies.strategyRegistry.get(strategyName);
+      if (!strategy) {
+        throw new Error(`Exploration strategy '${strategyName}' not found`);
+      }
+
+      // Create analysis context with maxPositions configuration
       const context: AnalysisContext = {
         position: fen as FenString,
-        graph: projectGraph, // Use project graph instead of global graph
-        analysisStore: projectAnalysisStore,
-        config: analysisConfig,
+        config: analysisConfig, // Remove maxPositions from config
+        graph: projectGraph,
+        analysisStore,
         project,
         metadata: {
-          analysisType: options.type || 'position',
-          requestedAt: new Date().toISOString(),
+          maxPositions, // Pass maxPositions in metadata instead
         },
       };
 
-      // Find applicable strategies
-      // Replace the findApplicable logic with specific strategy selection
-      const analysisType = options.type || 'position';
-      let strategies: AnalysisStrategy[];
-
-      if (analysisType === 'pv-explore') {
-        const pvStrategy = this.dependencies.strategyRegistry.get('pv-explore');
-        strategies = pvStrategy ? [pvStrategy] : [];
-      } else {
-        // Default to basic position analysis
-        const basicStrategy =
-          this.dependencies.strategyRegistry.get('position');
-        strategies = basicStrategy ? [basicStrategy] : [];
-      }
-
-      if (strategies.length === 0) {
-        throw new Error(
-          `Strategy not found for analysis type: ${analysisType}`
-        );
-      }
-
-      console.log(
-        `Found ${strategies.length} applicable strategy(ies): ${strategies.map(s => s.name).join(', ')}`
-      );
-
-      // Check if PV exploration strategy is being used
-      const isPVExploration = strategies.some(
-        strategy => strategy.name === 'pv-explore'
-      );
-
-      // Configure task execution - disable timeout for PV exploration
-      const executionConfig: TaskExecutionConfig = {
-        maxExecutionTimeMs: isPVExploration
-          ? undefined
-          : analysisConfig.timeLimit || 300000, // No timeout for PV exploration
-        continueOnError: true,
-        maxRetries: 2,
-        enableParallelExecution: false,
+      // Configure task execution (use maxExecutionTimeMs instead of disableTimeout)
+      const taskConfig: TaskExecutionConfig = {
+        maxExecutionTimeMs: undefined, // Use undefined for no timeout
       };
 
-      // Set up progress tracking
-      const progressCallback: ProgressCallback = progress => {
-        const percentage = Math.round(
-          (progress.current / progress.total) * 100
-        );
-        console.log(
-          `Progress: ${percentage}% (${progress.current}/${progress.total}) ${progress.message || ''}`
-        );
-      };
-
-      // Execute analysis - fix the parameter: use 'fen' instead of 'position'
-      console.log('Starting analysis...');
-      const startTime = Date.now();
-
-      const result = await this.dependencies.taskExecutor.executeStrategies(
-        strategies,
-        fen as FenString,
-        {
-          project,
-          config: analysisConfig,
-          analysisStore: projectAnalysisStore,
-          graph: projectGraph, // Use project's graph instead of global CLI graph
-        }
+      // Execute exploration
+      console.log(`Starting ${strategyName} exploration...`);
+      await this.dependencies.taskExecutor.executeStrategies(
+        [strategy],
+        fen as FenString, // Pass the position as second parameter
+        context // Pass context as third parameter (additionalContext)
       );
 
-      const executionTime = Date.now() - startTime;
+      // Save the updated project graph
+      await saveGraph(
+        projectGraph,
+        'graph.json',
+        path.dirname(project.graphPath)
+      );
 
-      // Save the project's graph (which now contains the move edges)
-      if (result.success) {
-        await this.dependencies.projectManager.saveGraph(project, projectGraph);
-      }
-
-      // Replace the current return statement around line 155 with:
-      if (result.success) {
-        console.log(
-          `\n✓ Analysis completed successfully in ${executionTime}ms`
-        );
-        console.log(
-          `  - Strategies executed: ${result.metadata.strategiesExecuted}`
-        );
-        console.log(`  - Results generated: ${result.results.length}`);
-        console.log(
-          `  - Failed strategies: ${result.metadata.strategiesFailed}`
-        );
-
-        // Display key results - fix property access
-        if (result.results.length > 0) {
-          console.log('\nTop analysis results:');
-          result.results.slice(0, 3).forEach((analysis, index) => {
-            // Use score instead of evaluation, and pvs instead of pv
-            const evaluation = analysis.score
-              ? `${analysis.score.type} ${analysis.score.score}`
-              : 'N/A';
-            console.log(
-              `  ${index + 1}. Eval: ${evaluation}, Depth: ${analysis.depth || 'N/A'}`
-            );
-            if (analysis.pvs && analysis.pvs.length > 0) {
-              const pv = analysis.pvs[0].split(' ').slice(0, 5).join(' ');
-              console.log(
-                `     PV: ${pv}${analysis.pvs[0].split(' ').length > 5 ? '...' : ''}`
-              );
-            }
-          });
-        }
-      } else {
-        console.log(`\n✗ Analysis failed or partially completed`);
-        console.log(`  - Execution time: ${executionTime}ms`);
-        console.log(`  - Errors: ${result.errors.length}`);
-
-        if (result.errors.length > 0) {
-          console.log('\nErrors encountered:');
-          result.errors.forEach((error, index) => {
-            console.log(`  ${index + 1}. ${error.message}`);
-          });
-        }
-      }
-
-      return { success: result.success, data: result };
+      console.log('✓ Exploration completed successfully');
+      return {
+        success: true,
+        message: 'Position exploration completed',
+        data: { fen, strategy: strategyName, maxPositions },
+      };
     } catch (error) {
-      const message = `Failed to analyze position: ${error instanceof Error ? error.message : error}`;
+      const message = `Failed to explore positions: ${
+        error instanceof Error ? error.message : error
+      }`;
       console.error(message);
       return { success: false, error: error as Error, message };
     }
@@ -238,17 +251,30 @@ export class AnalysisCommands {
     try {
       console.log(`Resuming analysis for project: ${projectName}`);
 
-      const projectPath = path.join(process.cwd(), projectName);
+      const projectPath = path.join(getProjectDirectory(), projectName);
       const project = await this.dependencies.projectManager.load(projectPath);
 
-      // Find positions that need analysis
+      // Get unanalyzed positions
       const positions = await this.getProjectPositions(project);
       const unanalyzedPositions = await this.getUnanalyzedPositions(positions);
 
       if (unanalyzedPositions.length === 0) {
-        console.log('✓ All positions are already analyzed');
-        return { success: true, message: 'No analysis needed' };
+        return {
+          success: true,
+          message: 'No unanalyzed positions found. Analysis is complete.',
+        };
       }
+
+      // Resume analysis for the first unanalyzed position
+      const fen = unanalyzedPositions[0];
+      console.log(`Resuming analysis for position: ${fen}`);
+
+      // Fix: Remove type option from analyze call
+      const result = await this.analyze(projectName, fen, {
+        depth: '20',
+        time: '5000',
+        multipv: '1',
+      });
 
       console.log(
         `Found ${unanalyzedPositions.length} positions needing analysis`
@@ -262,9 +288,7 @@ export class AnalysisCommands {
           `\nAnalyzing position ${i + 1}/${unanalyzedPositions.length}: ${position}`
         );
 
-        const result = await this.analyze(projectName, position, {
-          type: 'position',
-        });
+        const result = await this.analyze(projectName, position, {});
         if (result.success) {
           successCount++;
         }

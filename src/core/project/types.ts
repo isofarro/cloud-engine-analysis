@@ -114,8 +114,8 @@ export interface AnalysisConfig {
   /** Analysis depth */
   depth?: number;
 
-  /** Time limit in milliseconds */
-  timeLimit?: number;
+  /** Time limit in seconds */
+  time?: number;
 
   /** Number of principal variations */
   multiPv?: number;
