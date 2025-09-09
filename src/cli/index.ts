@@ -145,7 +145,7 @@ export class ChessProjectCLI {
 
     // Print project graph command
     this.program
-      .command('print <project-name>')
+      .command('print <project-name> [fen]')
       .description('Print the project graph with board and compact tree')
       .option(
         '--maxDepth <depth>',
@@ -153,11 +153,12 @@ export class ChessProjectCLI {
         value => parseInt(value, 10)
       )
       .option('--verbose', 'Show verbose output with detailed position info')
-      .action(async (projectName, options) => {
+      .action(async (projectName, fen, options) => {
         await this.projectCommands!.printGraph(
           projectName,
           options.maxDepth,
-          options.verbose
+          options.verbose,
+          fen // Pass the optional FEN parameter
         );
       });
   }

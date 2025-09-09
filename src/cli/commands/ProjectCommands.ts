@@ -317,7 +317,8 @@ export class ProjectCommands {
   public async printGraph(
     projectName: string,
     maxDepth?: number,
-    verbose?: boolean
+    verbose?: boolean,
+    startPosition?: string // Add optional FEN parameter
   ): Promise<CommandResult> {
     try {
       const projectPath = path.join(getProjectDirectory(), projectName);
@@ -333,14 +334,18 @@ export class ProjectCommands {
       }
 
       console.log(`\n📁 Project: ${projectName}`);
-      // console.log(`📍 Graph file: ${path.join(project.projectPath, 'graph.json')}`);
+
+      if (startPosition) {
+        console.log(`🎯 Start position: ${startPosition}`);
+      }
 
       if (maxDepth !== undefined) {
         console.log(`🔍 Max depth: ${maxDepth}`);
       }
 
       // Print the graph using the same function as scripts/print-graph.ts
-      printGraph(graph, maxDepth || 10, verbose || false);
+      // Pass the startPosition parameter to focus on specific part of graph
+      printGraph(graph, maxDepth || 10, verbose || false, startPosition);
 
       return { success: true };
     } catch (error) {
