@@ -13,6 +13,7 @@ import * as path from 'path';
 import { FenString } from '../../core/types';
 import { getProjectDirectory } from '../utils';
 import { Chess } from 'chess.ts';
+import { printGraph } from '../../core/utils/graph';
 
 /**
  * Project management command handlers
@@ -308,5 +309,44 @@ export class ProjectCommands {
     graph: ChessGraph
   ): Promise<void> {
     saveGraph(graph, 'graph.json', project.projectPath);
+  }
+
+  /**
+   * Print the project graph with board and compact tree
+   */
+  public async printGraph(
+    projectName: string,
+    maxDepth?: number,
+    verbose?: boolean
+  ): Promise<CommandResult> {
+    try {
+      const projectPath = path.join(getProjectDirectory(), projectName);
+      const project = await this.dependencies.projectManager.load(projectPath);
+
+      // Load project graph
+      const graph = await this.loadProjectGraph(project);
+
+      // Check if graph has any content
+      if (!graph.rootPosition && Object.keys(graph.nodes).length === 0) {
+        console.log('📊 Empty graph (no positions or moves)');
+        return { success: true };
+      }
+
+      console.log(`\n📁 Project: ${projectName}`);
+      // console.log(`📍 Graph file: ${path.join(project.projectPath, 'graph.json')}`);
+
+      if (maxDepth !== undefined) {
+        console.log(`🔍 Max depth: ${maxDepth}`);
+      }
+
+      // Print the graph using the same function as scripts/print-graph.ts
+      printGraph(graph, maxDepth || 10, verbose || false);
+
+      return { success: true };
+    } catch (error) {
+      const message = `Failed to print graph: ${error instanceof Error ? error.message : error}`;
+      console.error(message);
+      return { success: false, error: error as Error, message };
+    }
   }
 }

@@ -142,6 +142,24 @@ export class ChessProjectCLI {
       .action((projectName, options) => {
         this.analysisCommands!.export(projectName, options);
       });
+
+    // Print project graph command
+    this.program
+      .command('print <project-name>')
+      .description('Print the project graph with board and compact tree')
+      .option(
+        '--maxDepth <depth>',
+        'Maximum depth to print (default: 10)',
+        value => parseInt(value, 10)
+      )
+      .option('--verbose', 'Show verbose output with detailed position info')
+      .action(async (projectName, options) => {
+        await this.projectCommands!.printGraph(
+          projectName,
+          options.maxDepth,
+          options.verbose
+        );
+      });
   }
 
   public async run(argv?: string[]): Promise<void> {
