@@ -102,7 +102,7 @@ export class ChessProjectCLI {
 
     // Make move command
     this.program
-      .command('make-move <project-name> <fromFen> <move> <toFen>')
+      .command('add-move <project-name> <fromFen> <move> [toFen]')
       .description('Add a move edge to the project graph')
       .option('--primary', 'Mark this move as the primary/main line move')
       .action(async (projectName, fromFen, move, toFen, options) => {
@@ -110,7 +110,7 @@ export class ChessProjectCLI {
           projectName,
           fromFen,
           move,
-          toFen,
+          toFen, // Can be undefined now
           options.primary
         );
       });

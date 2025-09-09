@@ -12,6 +12,7 @@ import type { Move } from '../../core/graph/types';
 import * as path from 'path';
 import { FenString } from '../../core/types';
 import { getProjectDirectory } from '../utils';
+import { Chess } from 'chess.ts';
 
 /**
  * Project management command handlers
@@ -138,14 +139,36 @@ export class ProjectCommands {
     projectName: string,
     fromFen: string,
     move: string,
-    toFen: string,
+    toFen?: string, // Now optional
     primary?: boolean
   ): Promise<CommandResult> {
     try {
       console.log(`Adding move to project: ${projectName}`);
 
-      if (!this.isValidFen(fromFen) || !this.isValidFen(toFen)) {
-        throw new Error('Invalid FEN positions provided');
+      if (!this.isValidFen(fromFen)) {
+        throw new Error('Invalid fromFen position provided');
+      }
+
+      // Calculate toFen if not provided
+      let calculatedToFen: string;
+      if (toFen) {
+        // Validate provided toFen
+        if (!this.isValidFen(toFen)) {
+          throw new Error('Invalid toFen position provided');
+        }
+        calculatedToFen = toFen;
+      } else {
+        // Calculate toFen using chess.ts
+        const chess = new Chess(fromFen);
+
+        // Validate and make the move
+        const moveResult = chess.move(move);
+        if (!moveResult) {
+          throw new Error(`Invalid move '${move}' for position '${fromFen}'`);
+        }
+
+        calculatedToFen = chess.fen();
+        console.log(`✓ Calculated resulting position: ${calculatedToFen}`);
       }
 
       const projectPath = path.join(getProjectDirectory(), projectName);
@@ -157,7 +180,7 @@ export class ProjectCommands {
       // Create Move object with correct type
       const moveObj: Move = {
         move: move,
-        toFen: toFen as FenString,
+        toFen: calculatedToFen as FenString,
       };
 
       // Add move to graph
@@ -166,7 +189,7 @@ export class ProjectCommands {
       // Save graph
       await this.saveProjectGraph(project, graph);
 
-      console.log(`✓ Move added: ${fromFen} --${move}--> ${toFen}`);
+      console.log(`✓ Move added: ${fromFen} --${move}--> ${calculatedToFen}`);
       return { success: true };
     } catch (error) {
       const message = `Failed to add move: ${error instanceof Error ? error.message : error}`;
