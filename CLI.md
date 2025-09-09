@@ -30,5 +30,9 @@ yarn project analyse ruy-lopez-chigorin \
     "r1b2rk1/2q1bppp/p2p1n2/npp1p3/3PP3/2P2N1P/PPB2PP1/RNBQR1K1 w - - 1 12"\
     --time 60\
     --type pv-explore
+
+# Print the graph of the project
+yarn project print ruy-lopez-chigorin --maxDepth 24
+
 ```
 
