@@ -6,6 +6,11 @@ deeper iterative and forwards/backwards analysis of a given position.
 The output could be a simple EPD (Extended Position Description) string,
 or a chess tree.
 
+It also has a `yarn project` command for creating and managing chess-analysis projects.
+See CLI.md for details.
+
+![Project print chess graph](/public/project-graph.png)
+
 ## Getting Started
 
 ### Prerequisites
@@ -55,14 +60,21 @@ The server runs on `http://localhost:3001` by default.
 cloud-engine-analysis/
 ├── src/
 │   ├── app/              # The http API routes and controllers
+│   ├── cli/              # Command-line interface
+│   │   ├── commands/     # CLI command implementations
+│   │   ├── bin.ts        # CLI entry point
+│   │   ├── index.ts      # CLI main module
+│   │   └── ...           # Other CLI utilities
 │   ├── core/             # The core application
 │   │   ├── analysis-store/   # Database and storage management
 │   │   ├── engine/           # Chess engine integration
 │   │   ├── graph/            # Chess graph data structures
+│   │   ├── project/          # Project management functionality
 │   │   ├── tasks/            # Analysis task implementations
 │   │   ├── utils/            # Utility functions and helpers
 │   │   ├── types.ts          # Core type definitions
 │   │   └── index.ts          # Core module exports
+│   ├── utils/            # General utilities
 │   └── server.ts         # Main server file
 ├── examples/             # Example usage and demos
 │   ├── analysis/         # Analysis task examples
@@ -70,9 +82,6 @@ cloud-engine-analysis/
 │   ├── chess-graph/      # Graph manipulation examples
 │   └── engines/          # Engine integration examples
 ├── scripts/              # Utility scripts
-│   ├── import-epd.ts     # EPD file import script
-│   ├── print-graph.ts    # Graph visualization script
-│   └── pv-explorer.ts    # Primary variation exploration script
 └── docs/                 # Documentation files
 ```
 
