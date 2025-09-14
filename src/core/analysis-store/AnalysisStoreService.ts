@@ -1,5 +1,5 @@
 import { IAnalysisRepo } from './IAnalysisRepo';
-import { AnalysisResult } from '../engine/types';
+import { UciAnalysisResult } from '../engine/types';
 import {
   Engine,
   Analysis,
@@ -25,7 +25,7 @@ export class AnalysisStoreService {
    * Store an analysis result with automatic engine and position management.
    */
   async storeAnalysisResult(
-    analysisResult: AnalysisResult,
+    analysisResult: UciAnalysisResult,
     engineSlug: string
   ): Promise<void> {
     // Ensure position exists
@@ -62,7 +62,7 @@ export class AnalysisStoreService {
    * Uses transactions and batch operations for optimal performance.
    */
   async storeMultipleAnalysisResults(
-    results: Array<{ analysisResult: AnalysisResult; engineSlug: string }>
+    results: Array<{ analysisResult: UciAnalysisResult; engineSlug: string }>
   ): Promise<void> {
     // Group by unique positions and engines to minimize upserts
     const uniquePositions = new Set<FenString>();

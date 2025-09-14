@@ -7,8 +7,8 @@ import {
   AnalysisDependencies,
   AnalysisStrategy,
   AnalysisContext,
-  AnalysisResult,
 } from '../types';
+import { UciAnalysisResult } from '../../engine/types';
 import { ChessGraph } from '../../graph/ChessGraph';
 import {
   AnalysisStoreService,
@@ -21,7 +21,7 @@ class MockAnalysisStrategy implements AnalysisStrategy {
   readonly name = 'mock-strategy';
   readonly description = 'Mock strategy for testing';
 
-  async execute(context: AnalysisContext) {
+  async execute(context: AnalysisContext): Promise<UciAnalysisResult[]> {
     return [
       {
         fen: context.position,
@@ -55,7 +55,7 @@ class FailingMockStrategy implements AnalysisStrategy {
   readonly name = 'failing-strategy';
   readonly description = 'Failing mock strategy for testing';
 
-  async execute(context: AnalysisContext): Promise<AnalysisResult[]> {
+  async execute(context: AnalysisContext): Promise<UciAnalysisResult[]> {
     throw new Error('Mock strategy failure');
   }
 
@@ -105,6 +105,10 @@ describe('AnalysisTaskExecutor', () => {
       list: vi.fn(),
       delete: vi.fn(),
       isValidProject: vi.fn(),
+      getAnalysisStore: vi.fn(),
+      closeAnalysisStore: vi.fn(),
+      loadGraph: vi.fn(),
+      saveGraph: vi.fn(),
     };
 
     dependencies = {
@@ -175,13 +179,11 @@ describe('AnalysisTaskExecutor', () => {
         },
       };
 
-      // Then fix line 156:
       const result = await executor.executeStrategy(
         failingStrategy.name,
         context.position
       );
 
-      // And fix line 190:
       await executor.executeStrategy(mockStrategy.name, context.position);
 
       expect(result.success).toBe(false);

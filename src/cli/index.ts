@@ -1,7 +1,7 @@
 import { Command } from 'commander';
 import { ProjectCommands } from './commands/ProjectCommands';
 import { AnalysisCommands } from './commands/AnalysisCommands';
-import { AnalyzeOptions, CLIDependencies } from './types';
+import { AnalyzeOptions, CLIDependencies, ExploreOptions } from './types';
 import { createCLIDependencies } from './dependencies';
 import { getProjectDirectory } from './utils';
 

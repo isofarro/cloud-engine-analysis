@@ -1,4 +1,4 @@
-import { AnalysisResult } from '../engine/types';
+import { UciAnalysisResult } from '../engine/types';
 import { ChessGraph } from '../graph/ChessGraph';
 import { Chess } from 'chess.ts';
 import { convertMoveToSan } from '../utils/move';
@@ -35,7 +35,7 @@ export class AnalysisManager {
   static addAnalysisResultToGraph(
     graph: ChessGraph,
     store: AnalysisStore,
-    result: AnalysisResult
+    result: UciAnalysisResult
   ): void {
     // Store analysis in our simple store
     store.positions[result.fen] = {
