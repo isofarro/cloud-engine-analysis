@@ -80,9 +80,7 @@ export class ProjectCommands {
   ): Promise<CommandResult> {
     try {
       console.log(`Setting engine ${engineName} for project: ${projectName}`);
-
-      const projectPath = path.join(process.cwd(), projectName);
-      const project = await this.dependencies.projectManager.load(projectPath);
+      const project = await this.getProject(projectName);
 
       project.config.defaultEngine = engineName;
       await this.dependencies.projectManager.save(project);
@@ -110,10 +108,7 @@ export class ProjectCommands {
         throw new Error(`Invalid FEN position: ${fen}`);
       }
 
-      const projectPath = path.join(process.cwd(), projectName);
-      const project = await this.dependencies.projectManager.load(projectPath);
-
-      // Load project graph
+      const project = await this.getProject(projectName);
       const graph = await this.loadProjectGraph(project);
 
       // Set as root position if none exists
@@ -172,10 +167,7 @@ export class ProjectCommands {
         console.log(`✓ Calculated resulting position: ${calculatedToFen}`);
       }
 
-      const projectPath = path.join(getProjectDirectory(), projectName);
-      const project = await this.dependencies.projectManager.load(projectPath);
-
-      // Load project graph
+      const project = await this.getProject(projectName);
       const graph = await this.loadProjectGraph(project);
 
       // Create Move object with correct type
@@ -321,8 +313,7 @@ export class ProjectCommands {
     startPosition?: string // Add optional FEN parameter
   ): Promise<CommandResult> {
     try {
-      const projectPath = path.join(getProjectDirectory(), projectName);
-      const project = await this.dependencies.projectManager.load(projectPath);
+      const project = await this.getProject(projectName);
 
       // Load project graph
       const graph = await this.loadProjectGraph(project);

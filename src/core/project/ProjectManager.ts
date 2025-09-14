@@ -271,18 +271,19 @@ export class ProjectManager implements IProjectManager {
     }
 
     const entries = fs.readdirSync(searchDir, { withFileTypes: true });
-    const projectPaths: string[] = [];
+    const projects: string[] = [];
 
     for (const entry of entries) {
       if (entry.isDirectory()) {
-        const projectPath = path.join(searchDir, entry.name);
-        if (await this.isValidProject(projectPath)) {
-          projectPaths.push(projectPath);
-        }
+        projects.push(entry.name);
+        // const projectPath = path.join(searchDir, entry.name);
+        // if (await this.isValidProject(projectPath)) {
+        //   projectPaths.push(projectPath);
+        // }
       }
     }
 
-    return projectPaths.sort();
+    return projects.sort();
   }
 
   /**

@@ -3,17 +3,14 @@ import {
   AnalyzeOptions,
   ExportOptions,
   CommandResult,
-  ProgressCallback,
   ExploreOptions,
 } from '../types';
 import {
   ChessProject,
   AnalysisContext,
   AnalysisConfig,
-  AnalysisStrategy,
 } from '../../core/project/types';
 import { FenString } from '../../core/types';
-import { TaskExecutionConfig } from '../../core/project/services/AnalysisTaskExecutor';
 import { AnalysisChecker } from '../../core/project/services/AnalysisChecker';
 import { loadGraph, saveGraph } from '../../core/utils/graph';
 import * as path from 'path';
@@ -74,12 +71,6 @@ export class AnalysisCommands {
         // Add required project and metadata fields
         project,
         metadata: {},
-      };
-
-      // Configure task execution
-      const taskConfig: TaskExecutionConfig = {
-        // Fix: Use maxExecutionTimeMs instead of disableTimeout
-        maxExecutionTimeMs: undefined,
       };
 
       // Execute analysis
@@ -176,11 +167,6 @@ export class AnalysisCommands {
         },
       };
 
-      // Configure task execution (use maxExecutionTimeMs instead of disableTimeout)
-      const taskConfig: TaskExecutionConfig = {
-        maxExecutionTimeMs: undefined, // Use undefined for no timeout
-      };
-
       // Execute exploration
       console.log(`Starting ${strategyName} exploration...`);
       await this.dependencies.taskExecutor.executeStrategies(
@@ -270,7 +256,7 @@ export class AnalysisCommands {
       console.log(`Resuming analysis for position: ${fen}`);
 
       // Fix: Remove type option from analyze call
-      const result = await this.analyze(projectName, fen, {
+      await this.analyze(projectName, fen, {
         depth: '20',
         time: '5000',
         multipv: '1',

@@ -225,8 +225,8 @@ describe('ProjectManager', () => {
 
       const projects = await projectManager.list(testDir);
       expect(projects).toHaveLength(2);
-      expect(projects).toContain(path.resolve(path.join(testDir, 'project1')));
-      expect(projects).toContain(path.resolve(path.join(testDir, 'project2')));
+      expect(projects).toContain('project1');
+      expect(projects).toContain('project2');
     });
   });
 
@@ -253,13 +253,10 @@ describe('ProjectManager', () => {
 
   describe('list', () => {
     it('should list all projects in a directory', async () => {
-      const project1Path = path.join(testDir, 'project1');
-      const project2Path = path.join(testDir, 'project2');
-
       // Create projects sequentially to avoid database lock conflicts
       const project1 = await projectManager.create({
         name: 'project1',
-        projectPath: project1Path,
+        projectPath: path.join(testDir, 'project1'),
       });
 
       // Wait between project creations to ensure database is fully closed
@@ -267,7 +264,7 @@ describe('ProjectManager', () => {
 
       const project2 = await projectManager.create({
         name: 'project2',
-        projectPath: project2Path,
+        projectPath: path.join(testDir, 'project2'),
       });
 
       // Additional wait for filesystem and database to stabilize
@@ -276,8 +273,8 @@ describe('ProjectManager', () => {
       const projects = await projectManager.list(testDir);
 
       expect(projects).toHaveLength(2);
-      expect(projects).toContain(path.resolve(project1Path));
-      expect(projects).toContain(path.resolve(project2Path));
+      expect(projects).toContain(project1.name);
+      expect(projects).toContain(project2.name);
     });
   });
 
