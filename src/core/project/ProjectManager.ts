@@ -14,7 +14,6 @@ import sqlite3 from 'sqlite3';
 import { createAnalysisStoreService } from '../analysis-store';
 import { DEFAULT_STARTING_POSITION } from '../constants';
 
-
 /**
  * Project metadata file name
  */

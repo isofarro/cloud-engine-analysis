@@ -35,9 +35,7 @@ describe('StatePersistenceService', () => {
   describe('saveState', () => {
     it('should save PV exploration state', async () => {
       const state = {
-        positionsToAnalyze: [
-          DEFAULT_STARTING_POSITION,
-        ],
+        positionsToAnalyze: [DEFAULT_STARTING_POSITION],
         analyzedPositions: new Set<string>(),
         currentDepth: 0,
         maxDepth: 5,
@@ -68,9 +66,7 @@ describe('StatePersistenceService', () => {
   describe('loadState', () => {
     it('should restore previously saved state', async () => {
       const originalState = {
-        positionsToAnalyze: [
-          DEFAULT_STARTING_POSITION,
-        ],
+        positionsToAnalyze: [DEFAULT_STARTING_POSITION],
         analyzedPositions: new Set(['test-position']),
         currentDepth: 0,
         maxDepth: 5,
@@ -134,7 +130,7 @@ describe('StatePersistenceService', () => {
         'session2',
         'pv-explore', // ← Changed from 'pv-exploration' to 'pv-explore'
         'project2',
-       DEFAULT_STARTING_POSITION,
+        DEFAULT_STARTING_POSITION,
         testState,
         {}
       );

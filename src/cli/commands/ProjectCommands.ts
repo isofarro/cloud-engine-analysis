@@ -34,8 +34,6 @@ export class ProjectCommands {
   ): Promise<CommandResult> {
     try {
       console.log(`Creating project: ${projectName}`);
-
-      // Use getProjectDirectory() instead of hardcoded path
       const projectPath = path.join(getProjectDirectory(), projectName);
 
       // Validate FEN if provided
