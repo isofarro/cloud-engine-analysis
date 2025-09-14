@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { PVExplorationStrategy } from './PVExplorationStrategy';
 import { PVExplorationConfig, StrategyContext } from './types';
 import { AnalysisConfig } from '../../engine/ChessEngine';

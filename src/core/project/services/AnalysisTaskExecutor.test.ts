@@ -10,11 +10,9 @@ import {
 } from '../types';
 import { UciAnalysisResult } from '../../engine/types';
 import { ChessGraph } from '../../graph/ChessGraph';
-import {
-  AnalysisStoreService,
-  createAnalysisStoreService,
-} from '../../analysis-store';
+import { createAnalysisStoreService } from '../../analysis-store';
 import sqlite3 from 'sqlite3';
+import { DEFAULT_STARTING_POSITION } from '../../constants';
 
 // Mock strategy for testing
 class MockAnalysisStrategy implements AnalysisStrategy {
@@ -130,7 +128,7 @@ describe('AnalysisTaskExecutor', () => {
   describe('executeStrategy', () => {
     it('should execute strategy successfully', async () => {
       const context = {
-        position: 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1',
+        position: DEFAULT_STARTING_POSITION,
         graph: dependencies.graph,
         analysisStore: dependencies.analysisStore,
         config: { depth: 15 },
@@ -138,8 +136,7 @@ describe('AnalysisTaskExecutor', () => {
           id: 'test',
           name: 'Test',
           projectPath: '/tmp/test',
-          rootPosition:
-            'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1',
+          rootPosition: DEFAULT_STARTING_POSITION,
           graphPath: '/tmp/test/graph.json',
           databasePath: '/tmp/test/analysis.db',
           createdAt: new Date(),
@@ -161,7 +158,7 @@ describe('AnalysisTaskExecutor', () => {
 
     it('should handle strategy failures with retries', async () => {
       const context = {
-        position: 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1',
+        position: DEFAULT_STARTING_POSITION,
         graph: dependencies.graph,
         analysisStore: dependencies.analysisStore,
         config: { depth: 15 },
@@ -169,8 +166,7 @@ describe('AnalysisTaskExecutor', () => {
           id: 'test',
           name: 'Test',
           projectPath: '/tmp/test',
-          rootPosition:
-            'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1',
+          rootPosition: DEFAULT_STARTING_POSITION,
           graphPath: '/tmp/test/graph.json',
           databasePath: '/tmp/test/analysis.db',
           createdAt: new Date(),
@@ -201,7 +197,7 @@ describe('AnalysisTaskExecutor', () => {
       });
 
       const context = {
-        position: 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1',
+        position: DEFAULT_STARTING_POSITION,
         graph: dependencies.graph,
         analysisStore: dependencies.analysisStore,
         config: { depth: 15 },
@@ -209,8 +205,7 @@ describe('AnalysisTaskExecutor', () => {
           id: 'test',
           name: 'Test',
           projectPath: '/tmp/test',
-          rootPosition:
-            'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1',
+          rootPosition: DEFAULT_STARTING_POSITION,
           graphPath: '/tmp/test/graph.json',
           databasePath: '/tmp/test/analysis.db',
           createdAt: new Date(),

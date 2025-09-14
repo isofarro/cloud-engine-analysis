@@ -1,10 +1,8 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { PrimaryVariationExplorerTask } from './PrimaryVariationExplorerTask';
 import { PVExplorerConfig } from './types/pv-explorer';
 import { AnalysisConfig } from '../engine/ChessEngine';
 import { ChessProject } from '../project/types';
-import * as fs from 'fs';
-import * as path from 'path';
 import { DEFAULT_STARTING_POSITION } from '../constants';
 
 class MockChessEngine {

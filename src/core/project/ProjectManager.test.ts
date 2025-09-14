@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { ProjectManager } from './ProjectManager';
 import { CreateProjectConfig } from './types';
 import * as fs from 'fs';
