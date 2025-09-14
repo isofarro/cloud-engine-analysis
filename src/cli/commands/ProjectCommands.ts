@@ -197,29 +197,29 @@ export class ProjectCommands {
       const baseDir = options.path || process.cwd();
       console.log(`Listing projects in: ${baseDir}`);
 
-      const projectPaths = await this.dependencies.projectManager.list(baseDir);
+      const projects = await this.dependencies.projectManager.list(baseDir);
 
-      if (projectPaths.length === 0) {
+      if (projects.length === 0) {
         console.log('No projects found.');
         return { success: true, data: [] };
       }
 
-      console.log(`\nFound ${projectPaths.length} project(s):`);
-      for (const projectPath of projectPaths) {
+      console.log(`\nFound ${projects.length} project(s):`);
+      for (const projectName of projects) {
         try {
           const project =
-            await this.dependencies.projectManager.load(projectPath);
+            await this.dependencies.projectManager.load(projectName);
           console.log(
-            `  - ${project.name} (${path.relative(baseDir, projectPath)})`
+            `  - ${project.name} (${path.relative(baseDir, project.projectPath)})`
           );
           console.log(`    Root: ${project.rootPosition}`);
           console.log(`    Created: ${project.createdAt.toLocaleDateString()}`);
         } catch (error) {
-          console.log(`  - ${path.basename(projectPath)} (invalid project)`);
+          console.log(`  - ${projectName} (invalid project)`);
         }
       }
 
-      return { success: true, data: projectPaths };
+      return { success: true, data: projects };
     } catch (error) {
       const message = `Failed to list projects: ${error instanceof Error ? error.message : error}`;
       console.error(message);
