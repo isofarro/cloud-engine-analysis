@@ -1,3 +1,4 @@
+import { DEFAULT_STARTING_POSITION } from '../core/constants';
 import { FenString } from '../core/types';
 
 /**
@@ -69,7 +70,7 @@ export function testPrintBoard(): void {
 
   // Starting position
   console.log('Starting position:');
-  printBoard('rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1');
+  printBoard(DEFAULT_STARTING_POSITION);
 
   // After 1.e4
   console.log('After 1.e4:');

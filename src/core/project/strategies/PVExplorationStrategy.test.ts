@@ -10,13 +10,13 @@ import {
 import sqlite3 from 'sqlite3';
 import * as fs from 'fs';
 import * as path from 'path';
+import { DEFAULT_STARTING_POSITION } from '../../constants';
 
 // Mock engine for testing
 class MockChessEngine {
   private status: 'idle' | 'analyzing' | 'error' | 'disconnected' = 'idle';
   public client: any;
-  private currentPosition: string =
-    'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
+  private currentPosition: string = DEFAULT_STARTING_POSITION;
 
   constructor() {
     this.client = {
@@ -52,8 +52,7 @@ class MockChessEngine {
             if (args[0] === 'fen' && args.length > 6) {
               this.currentPosition = args.slice(1, 7).join(' ');
             } else if (args[0] === 'startpos') {
-              this.currentPosition =
-                'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
+              this.currentPosition = DEFAULT_STARTING_POSITION;
               // Handle moves after startpos
               if (args.includes('moves')) {
                 const movesIndex = args.indexOf('moves');
@@ -119,10 +118,7 @@ class MockChessEngine {
 
   private getPositionAnalysis() {
     // Return position-specific analysis based on current position
-    if (
-      this.currentPosition ===
-      'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1'
-    ) {
+    if (this.currentPosition === DEFAULT_STARTING_POSITION) {
       // Starting position
       return {
         pv: ['e2e4', 'e7e5', 'g1f3', 'b8c6'],
@@ -252,14 +248,12 @@ describe('PVExplorationStrategy', () => {
     );
 
     // Initialize test dependencies
-    graph = new ChessGraph(
-      'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1'
-    );
+    graph = new ChessGraph(DEFAULT_STARTING_POSITION);
     const db = new sqlite3.Database(':memory:');
     analysisStore = await createAnalysisStoreService(db);
 
     context = {
-      position: 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1',
+      position: DEFAULT_STARTING_POSITION,
       graph,
       analysisStore,
       config: analysisConfig,
@@ -267,7 +261,7 @@ describe('PVExplorationStrategy', () => {
         id: 'test-project',
         name: 'Test Project',
         projectPath: TEST_DIR,
-        rootPosition: 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKQ - 0 1',
+        rootPosition: DEFAULT_STARTING_POSITION,
         graphPath: path.join(TEST_DIR, 'graph.json'),
         databasePath: path.join(TEST_DIR, 'analysis.db'),
         createdAt: new Date(),

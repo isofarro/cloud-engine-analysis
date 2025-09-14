@@ -3,6 +3,7 @@ import { ProjectManager } from './ProjectManager';
 import { CreateProjectConfig } from './types';
 import * as fs from 'fs';
 import * as path from 'path';
+import { DEFAULT_STARTING_POSITION } from '../constants';
 
 // Use process PID and timestamp for better isolation
 // Use persistent base directory for all ProjectManager tests
@@ -106,9 +107,7 @@ describe('ProjectManager', () => {
       const project = await projectManager.create(config);
 
       expect(project.name).toBe(uniqueProjectName);
-      expect(project.rootPosition).toBe(
-        'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1'
-      );
+      expect(project.rootPosition).toBe(DEFAULT_STARTING_POSITION);
       expect(fs.existsSync(project.projectPath)).toBe(true);
       expect(fs.existsSync(project.graphPath)).toBe(true);
       expect(fs.existsSync(project.databasePath)).toBe(true);
@@ -130,8 +129,7 @@ describe('ProjectManager', () => {
         JSON.stringify({
           id: 'test-id',
           name: 'duplicate-project',
-          rootPosition:
-            'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1',
+          rootPosition: DEFAULT_STARTING_POSITION,
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString(),
           config: {},
@@ -141,8 +139,7 @@ describe('ProjectManager', () => {
       fs.writeFileSync(
         graphJsonPath,
         JSON.stringify({
-          rootPosition:
-            'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1',
+          rootPosition: DEFAULT_STARTING_POSITION,
           positions: {},
           moves: {},
         })

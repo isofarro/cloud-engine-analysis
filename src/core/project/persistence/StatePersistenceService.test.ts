@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { StatePersistenceService } from './StatePersistenceService';
 import { StatePersistenceConfig } from './types';
 import * as fs from 'fs';
+import { DEFAULT_STARTING_POSITION } from '../../constants';
 
 const TEST_STATE_DIR = './tmp/test-state';
 
@@ -35,7 +36,7 @@ describe('StatePersistenceService', () => {
     it('should save PV exploration state', async () => {
       const state = {
         positionsToAnalyze: [
-          'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1',
+          DEFAULT_STARTING_POSITION,
         ],
         analyzedPositions: new Set<string>(),
         currentDepth: 0,
@@ -55,7 +56,7 @@ describe('StatePersistenceService', () => {
         'test-session',
         'pv-explore', // ← Changed from 'pv-exploration' to 'pv-explore'
         'test-project',
-        'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1',
+        DEFAULT_STARTING_POSITION,
         state,
         { maxDepth: 5 }
       );
@@ -68,7 +69,7 @@ describe('StatePersistenceService', () => {
     it('should restore previously saved state', async () => {
       const originalState = {
         positionsToAnalyze: [
-          'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1',
+          DEFAULT_STARTING_POSITION,
         ],
         analyzedPositions: new Set(['test-position']),
         currentDepth: 0,
@@ -88,7 +89,7 @@ describe('StatePersistenceService', () => {
         'restore-test',
         'pv-explore', // ← Changed from 'pv-exploration' to 'pv-explore'
         'test-project',
-        'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1',
+        DEFAULT_STARTING_POSITION,
         originalState,
         { maxDepth: 5 }
       );
@@ -123,7 +124,7 @@ describe('StatePersistenceService', () => {
         'session1',
         'pv-explore', // ← Changed from 'pv-exploration' to 'pv-explore'
         'project1',
-        'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1',
+        DEFAULT_STARTING_POSITION,
         testState,
         {}
       );
@@ -133,7 +134,7 @@ describe('StatePersistenceService', () => {
         'session2',
         'pv-explore', // ← Changed from 'pv-exploration' to 'pv-explore'
         'project2',
-        'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1',
+       DEFAULT_STARTING_POSITION,
         testState,
         {}
       );

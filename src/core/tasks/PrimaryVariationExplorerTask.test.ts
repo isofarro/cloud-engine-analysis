@@ -5,6 +5,7 @@ import { AnalysisConfig } from '../engine/ChessEngine';
 import { ChessProject } from '../project/types';
 import * as fs from 'fs';
 import * as path from 'path';
+import { DEFAULT_STARTING_POSITION } from '../constants';
 
 class MockChessEngine {
   async connect() {
@@ -107,7 +108,7 @@ describe('PrimaryVariationExplorerTask', () => {
       projectPath: '/tmp/test-project',
       graphPath: '/tmp/test-project/graph.json',
       databasePath: '/tmp/test-project/analysis.db',
-      rootPosition: 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1',
+      rootPosition: DEFAULT_STARTING_POSITION,
       createdAt: new Date(),
       updatedAt: new Date(),
       config: {},
@@ -120,7 +121,7 @@ describe('PrimaryVariationExplorerTask', () => {
     };
 
     config = {
-      rootPosition: 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1',
+      rootPosition: DEFAULT_STARTING_POSITION,
       maxPositions: 100,
       maxDepthRatio: 1.0,
       databasePath: './test-analysis.db',

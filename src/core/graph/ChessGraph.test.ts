@@ -1,11 +1,11 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { ChessGraph } from './ChessGraph';
 import type { Move } from './types';
+import { DEFAULT_STARTING_POSITION } from '../constants';
 
 describe('ChessGraph', () => {
   let graph: ChessGraph;
-  const startingFen =
-    'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
+  const startingFen = DEFAULT_STARTING_POSITION;
   const afterE4Fen =
     'rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq e3 0 1';
   const afterE4E5Fen =

@@ -5,6 +5,7 @@ import {
   parseEPDLine,
   ParsedEPD,
 } from './epd';
+import { DEFAULT_STARTING_POSITION } from '../constants';
 
 describe('EPD Utils', () => {
   describe('parseEPD', () => {
@@ -14,7 +15,7 @@ describe('EPD Utils', () => {
       const result = parseEPD(epdLine);
 
       expect(result).toEqual({
-        fen: 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1',
+        fen: DEFAULT_STARTING_POSITION,
         operations: {
           ce: '20',
           acd: '10',
@@ -92,7 +93,7 @@ describe('EPD Utils', () => {
   describe('formatEPDAsAnalysisResult', () => {
     it('should format valid ParsedEPD to AnalysisResult', () => {
       const parsedEPD: ParsedEPD = {
-        fen: 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1',
+        fen: DEFAULT_STARTING_POSITION,
         operations: {
           ce: '20',
           acd: '10',
@@ -105,7 +106,7 @@ describe('EPD Utils', () => {
       const result = formatEPDAsAnalysisResult(parsedEPD);
 
       expect(result).toEqual({
-        fen: 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1',
+        fen: DEFAULT_STARTING_POSITION,
         depth: 10,
         selDepth: 10,
         multiPV: 1,
@@ -122,7 +123,7 @@ describe('EPD Utils', () => {
 
     it('should handle negative centipawn scores', () => {
       const parsedEPD: ParsedEPD = {
-        fen: 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1',
+        fen: DEFAULT_STARTING_POSITION,
         operations: {
           ce: '-150',
           acd: '12',
@@ -139,7 +140,7 @@ describe('EPD Utils', () => {
 
     it('should handle missing optional operations', () => {
       const parsedEPD: ParsedEPD = {
-        fen: 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1',
+        fen: DEFAULT_STARTING_POSITION,
         operations: {
           ce: '30',
           acd: '8',
@@ -149,7 +150,7 @@ describe('EPD Utils', () => {
       const result = formatEPDAsAnalysisResult(parsedEPD);
 
       expect(result).toEqual({
-        fen: 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1',
+        fen: DEFAULT_STARTING_POSITION,
         depth: 8,
         selDepth: 8,
         multiPV: 1,
@@ -166,7 +167,7 @@ describe('EPD Utils', () => {
 
     it('should calculate NPS correctly when time > 0', () => {
       const parsedEPD: ParsedEPD = {
-        fen: 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1',
+        fen: DEFAULT_STARTING_POSITION,
         operations: {
           ce: '25',
           acd: '15',
@@ -182,7 +183,7 @@ describe('EPD Utils', () => {
 
     it('should return null when missing required ce operation', () => {
       const parsedEPD: ParsedEPD = {
-        fen: 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1',
+        fen: DEFAULT_STARTING_POSITION,
         operations: {
           acd: '10',
         },
@@ -193,7 +194,7 @@ describe('EPD Utils', () => {
 
     it('should return null when missing required acd operation', () => {
       const parsedEPD: ParsedEPD = {
-        fen: 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1',
+        fen: DEFAULT_STARTING_POSITION,
         operations: {
           ce: '20',
         },
@@ -204,7 +205,7 @@ describe('EPD Utils', () => {
 
     it('should return null for invalid centipawn value', () => {
       const parsedEPD: ParsedEPD = {
-        fen: 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1',
+        fen: DEFAULT_STARTING_POSITION,
         operations: {
           ce: 'invalid',
           acd: '10',
@@ -216,7 +217,7 @@ describe('EPD Utils', () => {
 
     it('should return null for invalid depth value', () => {
       const parsedEPD: ParsedEPD = {
-        fen: 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1',
+        fen: DEFAULT_STARTING_POSITION,
         operations: {
           ce: '20',
           acd: 'invalid',

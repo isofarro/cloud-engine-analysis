@@ -12,12 +12,8 @@ import {
 } from './types';
 import sqlite3 from 'sqlite3';
 import { createAnalysisStoreService } from '../analysis-store';
+import { DEFAULT_STARTING_POSITION } from '../constants';
 
-/**
- * Default starting position FEN
- */
-const DEFAULT_STARTING_POSITION =
-  'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
 
 /**
  * Project metadata file name

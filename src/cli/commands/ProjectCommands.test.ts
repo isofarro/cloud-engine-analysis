@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { ProjectCommands } from './ProjectCommands';
 import { CLIDependencies } from '../types';
+import { DEFAULT_STARTING_POSITION } from '../../core/constants';
 
 describe('ProjectCommands', () => {
   let projectCommands: ProjectCommands;
@@ -34,8 +35,7 @@ describe('ProjectCommands', () => {
         id: 'test-id',
         name: 'test-project',
         projectPath: '/tmp/test-project',
-        rootPosition:
-          'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1',
+        rootPosition: DEFAULT_STARTING_POSITION,
         graphPath: '/tmp/test-project/graph.json',
         databasePath: '/tmp/test-project/analysis.db',
         createdAt: new Date(),
@@ -48,8 +48,7 @@ describe('ProjectCommands', () => {
         .mockResolvedValue(mockProject);
 
       const result = await projectCommands.create('test-project', {
-        rootPosition:
-          'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1',
+        rootPosition: DEFAULT_STARTING_POSITION,
       });
 
       expect(result.success).toBe(true);
@@ -57,8 +56,7 @@ describe('ProjectCommands', () => {
       expect(mockDependencies.projectManager.create).toHaveBeenCalledWith({
         name: 'test-project',
         projectPath: expect.stringContaining('test-project'),
-        rootPosition:
-          'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1',
+        rootPosition: DEFAULT_STARTING_POSITION,
         config: {
           defaultEngine: undefined,
           analysisDepth: undefined,

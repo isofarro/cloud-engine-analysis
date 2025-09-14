@@ -9,6 +9,7 @@ import {
   deleteGraph,
   printGraph,
 } from './graph';
+import { DEFAULT_STARTING_POSITION } from '../constants';
 
 // Use persistent base directory for all graph tests
 const TEST_BASE_DIR = './tmp/test-graphs';
@@ -66,8 +67,7 @@ describe('Graph Utils', () => {
     });
 
     it('should save a graph with root position', async () => {
-      const rootFen =
-        'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
+      const rootFen = DEFAULT_STARTING_POSITION;
       const graph = new ChessGraph(rootFen);
       const filePath = await saveGraph(graph, 'root-graph.json', testDir);
 
@@ -76,8 +76,7 @@ describe('Graph Utils', () => {
     });
 
     it('should save a graph with moves', async () => {
-      const startFen =
-        'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
+      const startFen = DEFAULT_STARTING_POSITION;
       const afterE4Fen =
         'rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq e3 0 1';
 
@@ -326,7 +325,7 @@ describe('printGraph', () => {
   });
 
   it('should print compact mode by default', () => {
-    const startFen = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
+    const startFen = DEFAULT_STARTING_POSITION;
     const graph = new ChessGraph(startFen);
     const afterE4 =
       'rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq e3 0 1';
@@ -362,7 +361,7 @@ describe('printGraph', () => {
   });
 
   it('should print verbose mode when requested', () => {
-    const startFen = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
+    const startFen = DEFAULT_STARTING_POSITION;
     const graph = new ChessGraph(startFen);
     const afterE4 =
       'rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq e3 0 1';
@@ -395,7 +394,7 @@ describe('printGraph', () => {
   });
 
   it('should print branching graph in compact mode', () => {
-    const startFen = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
+    const startFen = DEFAULT_STARTING_POSITION;
     const graph = new ChessGraph(startFen);
     const afterE4 =
       'rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq e3 0 1';
@@ -434,7 +433,7 @@ describe('printGraph', () => {
   });
 
   it('should print branching graph in verbose mode', () => {
-    const startFen = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
+    const startFen = DEFAULT_STARTING_POSITION;
     const graph = new ChessGraph(startFen);
     const afterE4 =
       'rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq e3 0 1';
@@ -473,7 +472,7 @@ describe('printGraph', () => {
   });
 
   it('should respect maxDepth parameter in compact mode', () => {
-    const startFen = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
+    const startFen = DEFAULT_STARTING_POSITION;
     const graph = new ChessGraph(startFen);
     const afterE4 =
       'rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq e3 0 1';
@@ -504,7 +503,7 @@ describe('printGraph', () => {
   });
 
   it('should show transposition indicator', () => {
-    const startFen = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
+    const startFen = DEFAULT_STARTING_POSITION;
     const graph = new ChessGraph(startFen);
     const afterE4 =
       'rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq e3 0 1';
