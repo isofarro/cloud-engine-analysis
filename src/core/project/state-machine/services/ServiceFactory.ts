@@ -42,7 +42,25 @@ export class ServiceFactory implements IServiceFactory {
   async createEngineService(
     config?: ServiceConfig['engine']
   ): Promise<EngineService> {
-    return new EngineService();
+    const engineService = new EngineService();
+
+    // If an engine instance is provided, register it directly instead of creating a new one
+    if (config?.options?.engine) {
+      // Check if it's already a LocalChessEngine instance
+      if (config.options.engine.constructor.name === 'LocalChessEngine') {
+        // Ensure the engine is connected before registering
+        if (config.options.engine.getStatus() === 'disconnected') {
+          await config.options.engine.connect();
+        }
+        // Register the existing engine instance using the proper public method
+        engineService.registerExistingEngine(config.options.engine, 'default');
+      } else {
+        // It's a config object, create new engine
+        await engineService.initializeEngine(config.options.engine, 'default');
+      }
+    }
+
+    return engineService;
   }
 
   async createGraphService(
@@ -76,6 +94,15 @@ export class ServiceFactory implements IServiceFactory {
       maxSnapshots: config?.options?.maxSnapshots || 10,
       compress: config?.options?.compress || false,
     };
+
+    // Ensure the stateDirectory is always a valid string
+    if (
+      !persistenceConfig.stateDirectory ||
+      typeof persistenceConfig.stateDirectory !== 'string'
+    ) {
+      persistenceConfig.stateDirectory = './tmp/state';
+    }
+
     const service = new StatePersistenceService(persistenceConfig);
     return new PersistenceService(service);
   }

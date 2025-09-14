@@ -80,7 +80,7 @@ export class PVStateMachineIntegration {
       phase: 'before_enter' as any,
       states: [PVExplorationState.IDLE],
       handler: async hookContext => {
-        console.log('🎯 PV exploration ready');
+        console.log('🔍 DEBUG: Entering IDLE state');
       },
     });
 
@@ -89,8 +89,10 @@ export class PVStateMachineIntegration {
       phase: 'before_exit' as any,
       states: [PVExplorationState.IDLE],
       handler: async hookContext => {
+        console.log('🔍 DEBUG: Exiting IDLE state');
         const context = hookContext.data.context as PVExplorationContext;
         await this.hooks.beforeRootAnalysis?.(context);
+        console.log('🔍 DEBUG: beforeRootAnalysis hook completed');
       },
     });
 
@@ -99,8 +101,30 @@ export class PVStateMachineIntegration {
       phase: 'after_enter' as any,
       states: [PVExplorationState.INITIALIZING],
       handler: async hookContext => {
-        const context = hookContext.data.context as PVExplorationContext;
-        await this.actions.initializeExploration(context);
+        console.log('🔍 DEBUG: Entering INITIALIZING state');
+        try {
+          const context = hookContext.data.context as PVExplorationContext;
+          console.log('🔍 DEBUG: About to call initializeExploration');
+          await this.actions.initializeExploration(context);
+          console.log('🔍 DEBUG: initializeExploration completed');
+          // Emit initialization complete event
+          console.log('🔍 DEBUG: Emitting INITIALIZATION_COMPLETE event');
+          this.eventBus.emit({
+            type: PVExplorationEvent.INITIALIZATION_COMPLETE,
+            payload: context,
+            timestamp: Date.now(),
+          });
+          console.log('🔍 DEBUG: INITIALIZATION_COMPLETE event emitted');
+        } catch (error) {
+          console.error('🔍 DEBUG: Error in INITIALIZING state:', error);
+          const context = hookContext.data.context as PVExplorationContext;
+          context.error = error as Error;
+          this.eventBus.emit({
+            type: PVExplorationEvent.EXPLORATION_ERROR,
+            payload: context,
+            timestamp: Date.now(),
+          });
+        }
       },
     });
 
@@ -109,9 +133,32 @@ export class PVStateMachineIntegration {
       phase: 'after_enter' as any,
       states: [PVExplorationState.ANALYZING_ROOT],
       handler: async hookContext => {
-        const context = hookContext.data.context as PVExplorationContext;
-        const result = await this.actions.analyzeRootPosition(context);
-        await this.hooks.afterRootAnalysis?.({ context, result });
+        console.log('🔍 DEBUG: Entering ANALYZING_ROOT state');
+        try {
+          const context = hookContext.data.context as PVExplorationContext;
+          console.log('🔍 DEBUG: About to call analyzeRootPosition');
+          const result = await this.actions.analyzeRootPosition(context);
+          console.log('🔍 DEBUG: analyzeRootPosition completed');
+          await this.hooks.afterRootAnalysis?.({ context, result });
+          console.log('🔍 DEBUG: afterRootAnalysis hook completed');
+          // Emit root analysis complete event
+          console.log('🔍 DEBUG: Emitting ROOT_ANALYSIS_COMPLETE event');
+          this.eventBus.emit({
+            type: PVExplorationEvent.ROOT_ANALYSIS_COMPLETE,
+            payload: context,
+            timestamp: Date.now(),
+          });
+          console.log('🔍 DEBUG: ROOT_ANALYSIS_COMPLETE event emitted');
+        } catch (error) {
+          console.error('🔍 DEBUG: Error in ANALYZING_ROOT state:', error);
+          const context = hookContext.data.context as PVExplorationContext;
+          context.error = error as Error;
+          this.eventBus.emit({
+            type: PVExplorationEvent.EXPLORATION_ERROR,
+            payload: context,
+            timestamp: Date.now(),
+          });
+        }
       },
     });
 
@@ -120,8 +167,22 @@ export class PVStateMachineIntegration {
       phase: 'after_enter' as any,
       states: [PVExplorationState.PROCESSING_QUEUE],
       handler: async hookContext => {
-        const context = hookContext.data.context as PVExplorationContext;
-        await this.actions.processExplorationQueue(context);
+        console.log('🔍 DEBUG: Entering PROCESSING_QUEUE state');
+        try {
+          const context = hookContext.data.context as PVExplorationContext;
+          console.log('🔍 DEBUG: About to call processExplorationQueue');
+          await this.actions.processExplorationQueue(context);
+          console.log('🔍 DEBUG: processExplorationQueue completed');
+        } catch (error) {
+          console.error('🔍 DEBUG: Error in PROCESSING_QUEUE state:', error);
+          const context = hookContext.data.context as PVExplorationContext;
+          context.error = error as Error;
+          this.eventBus.emit({
+            type: PVExplorationEvent.EXPLORATION_ERROR,
+            payload: context,
+            timestamp: Date.now(),
+          });
+        }
       },
     });
 

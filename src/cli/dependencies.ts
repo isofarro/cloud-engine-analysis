@@ -16,6 +16,7 @@ import { AnalysisConfig, ChessEngine } from '../core/engine/ChessEngine';
 import { PVExplorationStrategy } from '../core/project/strategies/PVExplorationStrategy';
 import { PVExplorationConfig } from '../core/project/strategies/types';
 import { getProjectDirectory } from './utils';
+import { PVStateMachineStrategy } from './strategies/PVStateMachineStrategy';
 
 /**
  * Simple implementation of AnalysisStrategyRegistry for CLI
@@ -149,8 +150,11 @@ export async function createCLIDependencies(
     pvAnalysisConfig,
     pvStrategyConfig
   );
-
   strategyRegistry.register(pvStrategy);
+
+  // Register state machine strategy
+  const pvStateMachineStrategy = new PVStateMachineStrategy(sharedEngine);
+  strategyRegistry.register(pvStateMachineStrategy);
 
   // Create task executor with dependencies
   const taskExecutor = new AnalysisTaskExecutor({

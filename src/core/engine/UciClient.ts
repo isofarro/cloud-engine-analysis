@@ -22,6 +22,15 @@ export class UciClient extends EventEmitter {
     super();
     this._process = process;
     this._engineConfig = engineConfig;
+    // Add debugging to trace constructor parameters
+    console.log(
+      '🔍 DEBUG: UciClient constructor called with process and engineConfig:',
+      {
+        processExists: !!process,
+        engineConfigExists: !!engineConfig,
+        engineConfig: engineConfig,
+      }
+    );
   }
 
   async connect(): Promise<void> {
@@ -127,6 +136,9 @@ export class UciClient extends EventEmitter {
     if (options?.length) {
       cmd = `${command} ${options.join(' ')}`;
     }
+
+    // Add logging of UCI commands
+    console.log(`🎯 UCI Command: ${cmd}`);
 
     this._process.stdin?.write(`${cmd}\n`);
   }

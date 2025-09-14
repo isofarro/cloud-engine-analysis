@@ -181,9 +181,19 @@ export class ResilientStateMachineEngine<
 
   private async saveCheckpoint(): Promise<void> {
     try {
+      // Validate that we have a valid id for the sessionId
+      const sessionId = this.id || `resilient-engine-${Date.now()}`;
+
+      if (!this.id) {
+        console.warn(
+          'ResilientStateMachineEngine: this.id is undefined, using fallback sessionId:',
+          sessionId
+        );
+      }
+
       // Create a proper SerializableState structure
       const checkpointState: SerializableState = {
-        sessionId: this.id,
+        sessionId,
         strategyName: 'checkpoint',
         projectName: 'state-machine',
         rootPosition:
@@ -215,7 +225,7 @@ export class ResilientStateMachineEngine<
       };
 
       await this.services.persistence.saveState({
-        sessionId: this.id,
+        sessionId,
         state: checkpointState,
         metadata: {
           timestamp: Date.now(),
@@ -228,8 +238,18 @@ export class ResilientStateMachineEngine<
 
   private async loadLastCheckpoint(): Promise<boolean> {
     try {
+      // Validate that we have a valid id for the sessionId
+      const sessionId = this.id || `resilient-engine-${Date.now()}`;
+
+      if (!this.id) {
+        console.warn(
+          'ResilientStateMachineEngine: this.id is undefined in loadLastCheckpoint, using fallback sessionId:',
+          sessionId
+        );
+      }
+
       const states = await this.services.persistence.findResumableStates({
-        sessionId: this.id,
+        sessionId,
         maxAge: 24 * 60 * 60 * 1000, // 24 hours
       });
 

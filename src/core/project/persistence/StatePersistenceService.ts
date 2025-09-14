@@ -33,29 +33,51 @@ export class StatePersistenceService {
     config: any,
     metadata: any = {}
   ): Promise<void> {
-    // Ensure directory exists before saving
-    await this.ensureStateDirectory();
-
     const serializableState: SerializableState = {
       sessionId,
       strategyName,
       projectName,
       rootPosition,
       state: this.serializeState(state),
-      savedAt: new Date(),
       config,
+      savedAt: new Date(), // Fix: Use Date object instead of string
       metadata: {
-        version: '1.0.0',
-        ...metadata,
+        version: '1.0',
+        engineSlug: metadata.engineSlug,
+        estimatedCompletion: metadata.estimatedCompletion,
+        ...metadata, // Allow additional metadata properties
       },
     };
 
     const filename = this.getStateFilename(sessionId);
-    const filepath = path.join(this.config.stateDirectory, filename);
+    // Add defensive check for undefined stateDirectory
+    const stateDirectory = this.config.stateDirectory || './tmp/test-state';
+    const filepath = path.join(stateDirectory, filename);
 
     try {
       const data = JSON.stringify(serializableState, null, 2);
-      await fs.writeFile(filepath, data, 'utf8');
+
+      console.log('🔍 DEBUG: About to call fs.writeFile with:', {
+        filepath,
+        filepathType: typeof filepath,
+        data: data ? 'data present' : 'data missing',
+        dataType: typeof data,
+      });
+
+      try {
+        await fs.writeFile(filepath, data, 'utf8');
+        console.log('🔍 DEBUG: fs.writeFile completed successfully');
+      } catch (writeError: any) {
+        console.error('🔍 DEBUG: fs.writeFile failed:', writeError);
+        console.error('🔍 DEBUG: fs.writeFile error details:', {
+          message: writeError.message,
+          code: writeError.code,
+          stack: writeError.stack,
+          filepath,
+          filepathType: typeof filepath,
+        });
+        throw writeError;
+      }
 
       // Cleanup old snapshots
       await this.cleanupOldSnapshots(sessionId);
@@ -72,10 +94,77 @@ export class StatePersistenceService {
    */
   async loadState(sessionId: string): Promise<StateRestorationResult> {
     try {
-      // Find the most recent state file for this sessionId
-      const files = await fs.readdir(this.config.stateDirectory);
+      console.log('🔍 DEBUG: loadState called with sessionId:', sessionId);
+      console.log('🔍 DEBUG: loadState - Call stack:', new Error().stack);
+
+      // Ensure directory exists before listing
+      await this.ensureStateDirectory();
+
+      // Add defensive check for undefined stateDirectory
+      const stateDirectory = this.config.stateDirectory || './tmp/test-state';
+      console.log(
+        '🔍 DEBUG: loadState - About to call fs.readdir with directory:',
+        stateDirectory
+      );
+      console.log(
+        '🔍 DEBUG: loadState - stateDirectory type:',
+        typeof stateDirectory
+      );
+
+      // Wrap fs.readdir with additional error catching
+      let files;
+      try {
+        console.log('🔍 DEBUG: Calling fs.readdir with:', {
+          stateDirectory,
+          type: typeof stateDirectory,
+        });
+        files = await fs.readdir(stateDirectory);
+        console.log('🔍 DEBUG: loadState - readdir result:', files);
+        console.log(
+          '🔍 DEBUG: loadState - readdir result type:',
+          typeof files,
+          'isArray:',
+          Array.isArray(files)
+        );
+      } catch (readdirError: any) {
+        console.error('🔍 DEBUG: loadState - fs.readdir failed:', readdirError);
+        console.error('🔍 DEBUG: loadState - fs.readdir error details:', {
+          message: readdirError.message,
+          code: readdirError.code,
+          stack: readdirError.stack,
+          stateDirectory,
+          stateDirectoryType: typeof stateDirectory,
+        });
+        throw readdirError;
+      }
+
+      // Add defensive check for files array
+      if (!Array.isArray(files)) {
+        console.error(
+          '🔍 DEBUG: loadState - fs.readdir did not return an array:',
+          files
+        );
+        return {
+          success: false,
+          error: `Failed to read state directory: ${stateDirectory}`,
+        };
+      }
+
       const stateFiles = files
-        .filter(f => f.startsWith(`${sessionId}-`) && f.endsWith('.state.json'))
+        .filter(f => {
+          console.log(
+            '🔍 DEBUG: loadState - filtering file:',
+            f,
+            'type:',
+            typeof f
+          );
+          return (
+            f &&
+            typeof f === 'string' &&
+            f.startsWith(`${sessionId}-`) &&
+            f.endsWith('.state.json')
+          );
+        })
         .sort((a, b) => {
           // Sort by timestamp in filename (most recent first)
           const timestampA = a.substring(
@@ -97,25 +186,45 @@ export class StatePersistenceService {
       }
 
       const filename = stateFiles[0]; // Most recent file
-      const filepath = path.join(this.config.stateDirectory, filename);
+      const filepath = path.join(stateDirectory, filename);
 
-      const data = await fs.readFile(filepath, 'utf8');
-      const state: SerializableState = JSON.parse(data);
+      console.log('🔍 DEBUG: About to call fs.readFile with:', {
+        filepath,
+        filepathType: typeof filepath,
+        filename,
+        filenameType: typeof filename,
+      });
 
-      const age = Date.now() - new Date(state.savedAt).getTime();
-      const completionPercentage = this.calculateCompletionPercentage(
-        state.state
-      );
+      try {
+        const data = await fs.readFile(filepath, 'utf8');
+        console.log('🔍 DEBUG: fs.readFile completed successfully');
+        const state: SerializableState = JSON.parse(data);
 
-      return {
-        success: true,
-        state,
-        metadata: {
-          age,
-          completionPercentage,
-          estimatedRemainingTime: this.estimateRemainingTime(state.state),
-        },
-      };
+        const age = Date.now() - new Date(state.savedAt).getTime();
+        const completionPercentage = this.calculateCompletionPercentage(
+          state.state
+        );
+
+        return {
+          success: true,
+          state,
+          metadata: {
+            age,
+            completionPercentage,
+            estimatedRemainingTime: this.estimateRemainingTime(state.state),
+          },
+        };
+      } catch (readFileError: any) {
+        console.error('🔍 DEBUG: fs.readFile failed:', readFileError);
+        console.error('🔍 DEBUG: fs.readFile error details:', {
+          message: readFileError.message,
+          code: readFileError.code,
+          stack: readFileError.stack,
+          filepath,
+          filepathType: typeof filepath,
+        });
+        throw readFileError;
+      }
     } catch (error) {
       return {
         success: false,
@@ -137,33 +246,161 @@ export class StatePersistenceService {
     }[]
   > {
     try {
-      const files = await fs.readdir(this.config.stateDirectory);
-      const stateFiles = files.filter(f => f.endsWith('.state.json'));
+      console.log('🔍 DEBUG: listSavedStates called');
+      console.log('🔍 DEBUG: listSavedStates - Call stack:', new Error().stack);
 
-      const states = [];
+      // Ensure directory exists before listing
+      await this.ensureStateDirectory();
+
+      // Add defensive check for undefined stateDirectory
+      const stateDirectory = this.config.stateDirectory || './tmp/test-state';
+      console.log(
+        '🔍 DEBUG: listSavedStates - About to call fs.readdir with directory:',
+        stateDirectory
+      );
+      console.log(
+        '🔍 DEBUG: listSavedStates - stateDirectory type:',
+        typeof stateDirectory
+      );
+
+      // Check if directory exists before reading
+      try {
+        console.log('🔍 DEBUG: About to call fs.stat with:', {
+          stateDirectory,
+          type: typeof stateDirectory,
+        });
+        const stats = await fs.stat(stateDirectory);
+        console.log('🔍 DEBUG: Directory stats:', stats.isDirectory());
+      } catch (statError: any) {
+        console.error('🔍 DEBUG: Directory stat error:', statError);
+        console.error('🔍 DEBUG: fs.stat error details:', {
+          message: statError.message,
+          code: statError.code,
+          stack: statError.stack,
+          stateDirectory,
+          stateDirectoryType: typeof stateDirectory,
+        });
+      }
+
+      // Wrap fs.readdir with additional error catching
+      let files;
+      try {
+        console.log('🔍 DEBUG: Calling fs.readdir with:', {
+          stateDirectory,
+          type: typeof stateDirectory,
+        });
+        files = await fs.readdir(stateDirectory);
+        console.log('🔍 DEBUG: listSavedStates - readdir result:', files);
+        console.log(
+          '🔍 DEBUG: listSavedStates - readdir result type:',
+          typeof files,
+          'isArray:',
+          Array.isArray(files)
+        );
+      } catch (readdirError: any) {
+        console.error(
+          '🔍 DEBUG: listSavedStates - fs.readdir failed:',
+          readdirError
+        );
+        console.error('🔍 DEBUG: listSavedStates - fs.readdir error details:', {
+          message: readdirError.message,
+          code: readdirError.code,
+          stack: readdirError.stack,
+          stateDirectory,
+          stateDirectoryType: typeof stateDirectory,
+        });
+        throw readdirError;
+      }
+
+      // Add more defensive checks
+      if (!Array.isArray(files)) {
+        console.error(
+          '🔍 DEBUG: listSavedStates - fs.readdir did not return an array:',
+          files
+        );
+        return [];
+      }
+
+      const stateFiles = files.filter(f => {
+        console.log(
+          '🔍 DEBUG: listSavedStates - filtering file:',
+          f,
+          'type:',
+          typeof f
+        );
+        return f && typeof f === 'string' && f.endsWith('.state.json');
+      });
+      console.log('🔍 DEBUG: filtered state files:', stateFiles);
+
+      const states: {
+        sessionId: string;
+        projectName: string;
+        strategyName: string;
+        savedAt: Date;
+        completionPercentage: number;
+      }[] = [];
+
       for (const file of stateFiles) {
         try {
-          const filepath = path.join(this.config.stateDirectory, file);
-          const data = await fs.readFile(filepath, 'utf8');
-          const state: SerializableState = JSON.parse(data);
+          // Add validation to ensure file is a valid string
+          if (!file || typeof file !== 'string') {
+            console.warn(`Skipping invalid file entry: ${file}`);
+            continue;
+          }
+          console.log('DEBUG: processing file:', file);
+          const filepath = path.join(stateDirectory, file);
+          console.log('DEBUG: full filepath:', filepath);
 
-          states.push({
-            sessionId: state.sessionId,
-            projectName: state.projectName,
-            strategyName: state.strategyName,
-            savedAt: new Date(state.savedAt),
-            completionPercentage: this.calculateCompletionPercentage(
-              state.state
-            ),
+          console.log('🔍 DEBUG: About to call fs.readFile with:', {
+            filepath,
+            filepathType: typeof filepath,
+            file,
+            fileType: typeof file,
           });
-        } catch (error) {
+
+          try {
+            const data = await fs.readFile(filepath, 'utf8');
+            console.log(
+              '🔍 DEBUG: fs.readFile completed successfully for file:',
+              file
+            );
+            const state: SerializableState = JSON.parse(data);
+
+            states.push({
+              sessionId: state.sessionId,
+              projectName: state.projectName,
+              strategyName: state.strategyName,
+              savedAt: new Date(state.savedAt),
+              completionPercentage: this.calculateCompletionPercentage(
+                state.state
+              ),
+            });
+          } catch (readFileError: any) {
+            console.error(
+              '🔍 DEBUG: fs.readFile failed for file:',
+              file,
+              readFileError
+            );
+            console.error('🔍 DEBUG: fs.readFile error details:', {
+              message: readFileError.message,
+              code: readFileError.code,
+              stack: readFileError.stack,
+              filepath,
+              filepathType: typeof filepath,
+            });
+            console.warn(
+              `Failed to parse state file ${file}: ${readFileError}`
+            );
+          }
+        } catch (error: any) {
           console.warn(`Failed to parse state file ${file}: ${error}`);
         }
       }
 
       return states.sort((a, b) => b.savedAt.getTime() - a.savedAt.getTime());
-    } catch (error) {
+    } catch (error: any) {
       console.error(`Failed to list saved states: ${error}`);
+      console.error('🔍 DEBUG: Full error stack:', error.stack);
       return [];
     }
   }
@@ -172,12 +409,48 @@ export class StatePersistenceService {
    * Delete saved state
    */
   async deleteState(sessionId: string): Promise<void> {
+    // Add validation for sessionId
+    if (
+      !sessionId ||
+      typeof sessionId !== 'string' ||
+      sessionId.trim() === ''
+    ) {
+      throw new Error('Invalid sessionId provided to deleteState');
+    }
+
     const filename = this.getStateFilename(sessionId);
-    const filepath = path.join(this.config.stateDirectory, filename);
+    // Add defensive check for undefined stateDirectory
+    const stateDirectory = this.config.stateDirectory || './tmp/test-state';
+    const filepath = path.join(stateDirectory, filename);
+
+    // Add filepath validation
+    if (!filepath || typeof filepath !== 'string' || filepath.trim() === '') {
+      throw new Error(`Invalid filepath generated: ${filepath}`);
+    }
 
     try {
-      await fs.unlink(filepath);
-      console.log(`✅ State deleted: ${filepath}`);
+      console.log('🔍 DEBUG: About to call fs.unlink with:', {
+        filepath,
+        filepathType: typeof filepath,
+        filename,
+        filenameType: typeof filename,
+      });
+
+      try {
+        await fs.unlink(filepath);
+        console.log('🔍 DEBUG: fs.unlink completed successfully');
+        console.log(`✅ State deleted: ${filepath}`);
+      } catch (unlinkError: any) {
+        console.error('🔍 DEBUG: fs.unlink failed:', unlinkError);
+        console.error('🔍 DEBUG: fs.unlink error details:', {
+          message: unlinkError.message,
+          code: unlinkError.code,
+          stack: unlinkError.stack,
+          filepath,
+          filepathType: typeof filepath,
+        });
+        throw unlinkError;
+      }
     } catch (error) {
       console.error(`❌ Failed to delete state: ${error}`);
       throw error;
@@ -268,8 +541,34 @@ export class StatePersistenceService {
   }
 
   private async ensureStateDirectory(): Promise<void> {
+    // Add defensive check for undefined stateDirectory
+    const stateDirectory = this.config.stateDirectory || './tmp/test-state';
+
+    console.log('🔍 DEBUG: About to call fs.mkdir with:', {
+      stateDirectory,
+      stateDirectoryType: typeof stateDirectory,
+    });
+
     try {
-      await fs.mkdir(this.config.stateDirectory, { recursive: true });
+      try {
+        await fs.mkdir(stateDirectory, { recursive: true });
+        console.log('🔍 DEBUG: fs.mkdir completed successfully');
+      } catch (mkdirError: any) {
+        console.error('🔍 DEBUG: fs.mkdir failed:', mkdirError);
+        console.error('🔍 DEBUG: fs.mkdir error details:', {
+          message: mkdirError.message,
+          code: mkdirError.code,
+          stack: mkdirError.stack,
+          stateDirectory,
+          stateDirectoryType: typeof stateDirectory,
+        });
+
+        // Only throw if it's not a "directory already exists" error
+        if (mkdirError.code !== 'EEXIST') {
+          console.error(`Failed to create state directory: ${mkdirError}`);
+          throw mkdirError;
+        }
+      }
     } catch (error: any) {
       // Only throw if it's not a "directory already exists" error
       if (error.code !== 'EEXIST') {
@@ -280,8 +579,17 @@ export class StatePersistenceService {
   }
 
   private getStateFilename(sessionId: string): string {
+    // Add validation for sessionId
+    if (
+      !sessionId ||
+      typeof sessionId !== 'string' ||
+      sessionId.trim() === ''
+    ) {
+      throw new Error('Invalid sessionId provided to getStateFilename');
+    }
+
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-    return `${sessionId}-${timestamp}.state.json`;
+    return `${sessionId.trim()}-${timestamp}.state.json`;
   }
 
   private calculateCompletionPercentage(
@@ -307,9 +615,75 @@ export class StatePersistenceService {
 
   private async cleanupOldSnapshots(sessionId: string): Promise<void> {
     try {
-      const files = await fs.readdir(this.config.stateDirectory);
+      console.log(
+        '🔍 DEBUG: cleanupOldSnapshots called with sessionId:',
+        sessionId
+      );
+      console.log(
+        '🔍 DEBUG: cleanupOldSnapshots - Call stack:',
+        new Error().stack
+      );
+
+      const stateDirectory = this.config.stateDirectory || './tmp/test-state';
+      console.log(
+        '🔍 DEBUG: cleanupOldSnapshots - About to call fs.readdir with directory:',
+        stateDirectory
+      );
+      console.log(
+        '🔍 DEBUG: cleanupOldSnapshots - stateDirectory type:',
+        typeof stateDirectory
+      );
+
+      // Wrap fs.readdir with additional error catching
+      let files;
+      try {
+        console.log('🔍 DEBUG: Calling fs.readdir with:', {
+          stateDirectory,
+          type: typeof stateDirectory,
+        });
+        files = await fs.readdir(stateDirectory);
+        console.log('🔍 DEBUG: cleanupOldSnapshots - readdir result:', files);
+        console.log(
+          '🔍 DEBUG: cleanupOldSnapshots - readdir result type:',
+          typeof files,
+          'isArray:',
+          Array.isArray(files)
+        );
+      } catch (readdirError: any) {
+        console.error(
+          '🔍 DEBUG: cleanupOldSnapshots - fs.readdir failed:',
+          readdirError
+        );
+        console.error(
+          '🔍 DEBUG: cleanupOldSnapshots - fs.readdir error details:',
+          {
+            message: readdirError.message,
+            code: readdirError.code,
+            stack: readdirError.stack,
+            stateDirectory,
+            stateDirectoryType: typeof stateDirectory,
+          }
+        );
+        throw readdirError;
+      }
+
+      // Add defensive check for files array
+      if (!Array.isArray(files)) {
+        console.error(
+          'DEBUG: cleanupOldSnapshots - fs.readdir did not return an array:',
+          files
+        );
+        return;
+      }
+
       const sessionFiles = files
-        .filter(f => f.startsWith(sessionId) && f.endsWith('.state.json'))
+        .filter(
+          f =>
+            f &&
+            typeof f === 'string' &&
+            f.startsWith(sessionId) &&
+            f.endsWith('.state.json')
+        )
         .sort()
         .reverse(); // newest first
 
@@ -317,10 +691,48 @@ export class StatePersistenceService {
       const filesToDelete = sessionFiles.slice(this.config.maxSnapshots);
 
       for (const file of filesToDelete) {
-        const filepath = path.join(this.config.stateDirectory, file);
-        await fs.unlink(filepath);
+        if (!file || typeof file !== 'string') {
+          console.warn(`Skipping invalid file entry in cleanup: ${file}`);
+          continue;
+        }
+        const filepath = path.join(stateDirectory, file);
+
+        // Add robust filepath validation before fs.unlink
+        if (
+          !filepath ||
+          typeof filepath !== 'string' ||
+          filepath.trim() === ''
+        ) {
+          console.warn(`Skipping invalid filepath in cleanup: ${filepath}`);
+          continue;
+        }
+
+        console.log('🔍 DEBUG: About to call fs.unlink in cleanup with:', {
+          filepath,
+          filepathType: typeof filepath,
+          file,
+          fileType: typeof file,
+        });
+
+        try {
+          await fs.unlink(filepath);
+          console.log('🔍 DEBUG: fs.unlink in cleanup completed successfully');
+          console.log(`🗑️ Deleted old snapshot: ${filepath}`);
+        } catch (unlinkError: any) {
+          console.error('🔍 DEBUG: fs.unlink in cleanup failed:', unlinkError);
+          console.error('🔍 DEBUG: fs.unlink cleanup error details:', {
+            message: unlinkError.message,
+            code: unlinkError.code,
+            stack: unlinkError.stack,
+            filepath,
+            filepathType: typeof filepath,
+          });
+          console.warn(
+            `Failed to delete file ${filepath}: ${unlinkError.message}`
+          );
+        }
       }
-    } catch (error) {
+    } catch (error: any) {
       console.warn(`Failed to cleanup old snapshots: ${error}`);
     }
   }

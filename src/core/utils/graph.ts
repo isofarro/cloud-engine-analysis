@@ -26,10 +26,20 @@ export async function saveGraph(
   filename?: string,
   directory: string = './graphs'
 ): Promise<string> {
+  console.log('🔍 DEBUG: saveGraph utility called with:', {
+    graph: graph ? 'ChessGraph instance' : 'undefined',
+    filename,
+    directory,
+    filenameType: typeof filename,
+    directoryType: typeof directory,
+  });
+
   // Ensure directory exists - this needs to be awaited properly
   try {
+    console.log('🔍 DEBUG: Creating directory:', directory);
     await fs.promises.mkdir(directory, { recursive: true });
   } catch (error: any) {
+    console.log('🔍 DEBUG: mkdir error:', error);
     // Ignore error if directory already exists
     if (error.code !== 'EEXIST') {
       throw error;
@@ -40,14 +50,18 @@ export async function saveGraph(
   if (!filename) {
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
     filename = `chess-graph-${timestamp}.json`;
+    console.log('🔍 DEBUG: Generated filename:', filename);
   }
 
   // Ensure filename has .json extension
   if (!filename.endsWith('.json')) {
     filename += '.json';
+    console.log('🔍 DEBUG: Added .json extension, filename now:', filename);
   }
 
   const filePath = path.join(directory, filename);
+  console.log('🔍 DEBUG: Final filePath:', filePath);
+  console.log('🔍 DEBUG: path.join called with:', { directory, filename });
 
   // Serialize the graph
   const serializedGraph: SerializedChessGraph = {

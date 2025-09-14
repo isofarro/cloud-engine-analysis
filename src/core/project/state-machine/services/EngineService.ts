@@ -148,4 +148,21 @@ export class EngineService implements IEngineService {
 
     return engine;
   }
+
+  /**
+   * Register an existing engine instance
+   * @param engine The engine instance to register
+   * @param engineId Optional engine ID
+   * @returns The engine ID
+   */
+  registerExistingEngine(engine: LocalChessEngine, engineId?: string): string {
+    const id = engineId || `engine_${Date.now()}`;
+    this.engines.set(id, engine);
+
+    if (!this.defaultEngineId) {
+      this.defaultEngineId = id;
+    }
+
+    return id;
+  }
 }

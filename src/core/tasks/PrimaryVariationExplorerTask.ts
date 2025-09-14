@@ -187,19 +187,41 @@ export class PrimaryVariationExplorerTask {
    * Save graph to disk if path is configured
    */
   private saveGraph(): void {
+    console.log('🔍 DEBUG: saveGraph() called');
+    console.log('🔍 DEBUG: this.config.graphPath =', this.config.graphPath);
+
     if (this.config.graphPath) {
       try {
         const dir = path.dirname(this.config.graphPath);
+        const filename = path.basename(this.config.graphPath);
+
+        console.log('🔍 DEBUG: dir =', dir);
+        console.log('🔍 DEBUG: filename =', filename);
+        console.log('🔍 DEBUG: dir type =', typeof dir);
+        console.log('🔍 DEBUG: filename type =', typeof filename);
+
         if (!fs.existsSync(dir)) {
+          console.log('🔍 DEBUG: Creating directory:', dir);
           fs.mkdirSync(dir, { recursive: true });
         }
-        saveGraph(this.graph, this.config.graphPath);
+
+        console.log('🔍 DEBUG: About to call saveGraph with:', {
+          graph: this.graph ? 'ChessGraph instance' : 'undefined',
+          filename,
+          dir,
+        });
+
+        saveGraph(this.graph, filename, dir);
+        console.log('🔍 DEBUG: saveGraph completed successfully');
       } catch (error) {
+        console.error('🔍 DEBUG: Error in saveGraph:', error);
         console.error(
           `Failed to save graph to ${this.config.graphPath}:`,
           error
         );
       }
+    } else {
+      console.log('🔍 DEBUG: No graphPath configured, skipping save');
     }
   }
 

@@ -20,7 +20,10 @@ import {
   Hook,
   HookContext,
 } from '../core/project/state-machine/types';
-import { EventBus, EventListener } from '../core/project/state-machine/types';
+import {
+  EventBus,
+  EventListener,
+} from '../core/project/state-machine/types';
 
 /**
  * Mock StateMachine for testing

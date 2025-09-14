@@ -1,4 +1,9 @@
-import { StateMachineEngine, SimpleEventBus } from '../index';
+import {
+  StateMachineEngine,
+  SimpleEventBus,
+  HookPhase,
+  HookContext,
+} from '../index';
 import {
   PVExplorationContext,
   PVState,
@@ -80,17 +85,251 @@ export class PVExplorationStrategy {
     // Initialize services
     const serviceFactory = new ServiceFactory();
     const services = await serviceFactory.createServices({
+      // Pass engine configuration if provided
+      engine: config.engineConfig?.engine
+        ? {
+            type: 'local',
+            options: {
+              engine: config.engineConfig.engine,
+            },
+          }
+        : undefined,
       graph: config.graph ? { type: 'memory', options: {} } : undefined,
       storage: config.analysisStore
         ? { type: 'memory', options: {} }
         : undefined,
-      persistence: { type: 'file', options: { stateDirectory: './tmp/state' } },
+      persistence: {
+        type: 'file',
+        options: { stateDirectory: './tmp/test-state' },
+      },
     });
 
     return new PVExplorationStrategy(config, services);
   }
 
   private setupEventHandlers(): void {
+    console.log('🔍 DEBUG: Setting up event handlers');
+
+    // Register hooks for each state to call the appropriate actions
+    this.stateMachine.registerHook({
+      id: 'initializing-enter',
+      phase: HookPhase.AFTER_ENTER,
+      states: [PVState.INITIALIZING],
+      handler: async (hookContext: HookContext<any, any>) => {
+        console.log('🔍 DEBUG: INITIALIZING state entered');
+        try {
+          // Initialize exploration queue
+          this.context.explorationQueue = [
+            {
+              fen: this.context.rootFen,
+              depth: 0,
+            },
+          ];
+          this.context.processedPositions = new Set();
+          this.context.totalPositions = 1;
+          this.context.analyzedPositions = 0;
+          this.context.startTime = Date.now();
+
+          this.eventBus.emit({
+            type: PVEvent.QUEUE_READY,
+            payload: this.context,
+            timestamp: Date.now(),
+          });
+        } catch (error) {
+          console.error('🔍 DEBUG: Error in INITIALIZING state:', error);
+          this.context.lastError = error as Error;
+          this.eventBus.emit({
+            type: PVEvent.ERROR_OCCURRED,
+            payload: this.context,
+            timestamp: Date.now(),
+          });
+        }
+      },
+    });
+
+    this.stateMachine.registerHook({
+      id: 'analyzing-root-enter',
+      phase: HookPhase.AFTER_ENTER,
+      states: [PVState.ANALYZING_ROOT],
+      handler: async (hookContext: HookContext<any, any>) => {
+        console.log('🔍 DEBUG: ANALYZING_ROOT state entered');
+        try {
+          await this.actions.handleRootAnalysisComplete(this.context);
+        } catch (error) {
+          console.error('🔍 DEBUG: Error in ANALYZING_ROOT state:', error);
+          this.context.lastError = error as Error;
+          this.eventBus.emit({
+            type: PVEvent.ERROR_OCCURRED,
+            payload: this.context,
+            timestamp: Date.now(),
+          });
+        }
+      },
+    });
+
+    this.stateMachine.registerHook({
+      id: 'processing-queue-enter',
+      phase: HookPhase.AFTER_ENTER,
+      states: [PVState.PROCESSING_QUEUE],
+      handler: async (hookContext: HookContext<any, any>) => {
+        console.log('🔍 DEBUG: PROCESSING_QUEUE state entered');
+        try {
+          // Check queue state and trigger appropriate event
+          if (this.context.explorationQueue.length === 0) {
+            this.eventBus.emit({
+              type: PVEvent.QUEUE_EMPTY,
+              payload: this.context,
+              timestamp: Date.now(),
+            });
+          } else if (this.context.graphNodeCount >= this.context.maxNodes) {
+            this.eventBus.emit({
+              type: PVEvent.QUEUE_EMPTY,
+              payload: this.context,
+              timestamp: Date.now(),
+            });
+          } else {
+            // Get next position from queue and set as current
+            const nextPosition = this.context.explorationQueue.shift();
+            if (nextPosition) {
+              this.context.currentPosition = nextPosition.fen;
+              this.eventBus.emit({
+                type: PVEvent.QUEUE_READY,
+                payload: this.context,
+                timestamp: Date.now(),
+              });
+            }
+          }
+        } catch (error) {
+          console.error('🔍 DEBUG: Error in PROCESSING_QUEUE state:', error);
+          this.context.lastError = error as Error;
+          this.eventBus.emit({
+            type: PVEvent.ERROR_OCCURRED,
+            payload: this.context,
+            timestamp: Date.now(),
+          });
+        }
+      },
+    });
+
+    this.stateMachine.registerHook({
+      id: 'analyzing-position-enter',
+      phase: HookPhase.AFTER_ENTER,
+      states: [PVState.ANALYZING_POSITION],
+      handler: async (hookContext: HookContext<any, any>) => {
+        console.log('🔍 DEBUG: ANALYZING_POSITION state entered');
+        try {
+          // Do the analysis work without emitting completion event
+          await this.actions.analyzeCurrentPosition(this.context);
+
+          // After analysis is complete, emit the transition event
+          this.eventBus.emit({
+            type: PVEvent.POSITION_ANALYSIS_COMPLETE,
+            payload: this.context,
+            timestamp: Date.now(),
+          });
+        } catch (error) {
+          console.error('🔍 DEBUG: Error in ANALYZING_POSITION state:', error);
+          this.context.lastError = error as Error;
+          this.eventBus.emit({
+            type: PVEvent.ERROR_OCCURRED,
+            payload: this.context,
+            timestamp: Date.now(),
+          });
+        }
+      },
+    });
+
+    this.stateMachine.registerHook({
+      id: 'building-graph-enter',
+      phase: HookPhase.AFTER_ENTER,
+      states: [PVState.BUILDING_GRAPH],
+      handler: async (hookContext: HookContext<any, any>) => {
+        console.log('🔍 DEBUG: BUILDING_GRAPH state entered');
+        try {
+          // Do the graph building work without emitting completion event
+          await this.actions.buildGraphFromAnalysis(this.context);
+
+          // After graph building is complete, emit the transition event
+          this.eventBus.emit({
+            type: PVEvent.GRAPH_UPDATE_COMPLETE,
+            payload: this.context,
+            timestamp: Date.now(),
+          });
+        } catch (error) {
+          console.error('🔍 DEBUG: Error in BUILDING_GRAPH state:', error);
+          this.context.lastError = error as Error;
+          this.eventBus.emit({
+            type: PVEvent.ERROR_OCCURRED,
+            payload: this.context,
+            timestamp: Date.now(),
+          });
+        }
+      },
+    });
+
+    this.stateMachine.registerHook({
+      id: 'storing-results-enter',
+      phase: HookPhase.AFTER_ENTER,
+      states: [PVState.STORING_RESULTS],
+      handler: async (hookContext: HookContext<any, any>) => {
+        console.log('🔍 DEBUG: STORING_RESULTS state entered');
+        try {
+          // Do the storage work without emitting completion event
+          await this.actions.storeResults(this.context);
+
+          // After storage is complete, emit the transition event
+          this.eventBus.emit({
+            type: PVEvent.STORAGE_COMPLETE,
+            payload: this.context,
+            timestamp: Date.now(),
+          });
+        } catch (error) {
+          console.error('🔍 DEBUG: Error in STORING_RESULTS state:', error);
+          this.context.lastError = error as Error;
+          this.eventBus.emit({
+            type: PVEvent.ERROR_OCCURRED,
+            payload: this.context,
+            timestamp: Date.now(),
+          });
+        }
+      },
+    });
+
+    this.eventBus.subscribe(PVEvent.START_EXPLORATION, async event => {
+      console.log('🔍 DEBUG: Received START_EXPLORATION event');
+      try {
+        // Use send() method instead of transition()
+        await this.stateMachine.send({
+          type: PVEvent.START_EXPLORATION,
+          payload: this.context,
+          timestamp: Date.now(),
+        });
+        console.log('🔍 DEBUG: Sent START_EXPLORATION to state machine');
+      } catch (error) {
+        console.error(
+          '🔍 DEBUG: Error sending START_EXPLORATION:',
+          (error as Error).message
+        );
+      }
+    });
+
+    this.eventBus.subscribe(PVEvent.QUEUE_READY, async event => {
+      console.log('🔍 DEBUG: Received QUEUE_READY event');
+      try {
+        // Use send() method instead of transition()
+        await this.stateMachine.send({
+          type: PVEvent.QUEUE_READY,
+          payload: this.context,
+          timestamp: Date.now(),
+        });
+        console.log('🔍 DEBUG: Sent QUEUE_READY to state machine');
+      } catch (error) {
+        console.error('🔍 DEBUG: Error sending QUEUE_READY:', error);
+      }
+    });
+
+    console.log('🔍 DEBUG: Event handlers setup completed');
+
     // Register action handlers for state machine events
     this.eventBus.subscribe(
       PVEvent.ROOT_ANALYSIS_COMPLETE,
@@ -127,123 +366,54 @@ export class PVExplorationStrategy {
       await this.actions.handleErrorOccurred(event.payload || this.context);
     });
 
-    // Listen to state machine state changes
-    this.eventBus.subscribe('state_changed', async (event: any) => {
-      await this.handleStateTransition(
-        event.payload.from,
-        event.payload.to,
-        this.context
-      );
-    });
-  }
-
-  private async handleStateTransition(
-    from: string,
-    to: string,
-    context: PVExplorationContext
-  ): Promise<void> {
-    try {
-      switch (to) {
-        case PVState.INITIALIZING:
-          // Auto-trigger queue ready after initialization
-          setTimeout(() => {
-            this.eventBus.emit({
-              type: PVEvent.QUEUE_READY,
-              payload: context,
-              timestamp: Date.now(),
-            });
-          }, 100);
-          break;
-
-        case PVState.ANALYZING_ROOT:
-          // Auto-trigger analysis complete after root analysis
-          setTimeout(() => {
-            this.eventBus.emit({
-              type: PVEvent.ROOT_ANALYSIS_COMPLETE,
-              payload: context,
-              timestamp: Date.now(),
-            });
-          }, context.timePerPosition + 100);
-          break;
-
-        case PVState.PROCESSING_QUEUE:
-          // Check queue state and trigger appropriate event
-          if (context.explorationQueue.length === 0) {
-            this.eventBus.emit({
-              type: PVEvent.QUEUE_EMPTY,
-              payload: context,
-              timestamp: Date.now(),
-            });
-          } else if (context.graphNodeCount >= context.maxNodes) {
-            this.eventBus.emit({
-              type: PVEvent.QUEUE_EMPTY,
-              payload: context,
-              timestamp: Date.now(),
-            });
-          } else {
-            this.eventBus.emit({
-              type: PVEvent.QUEUE_READY,
-              payload: context,
-              timestamp: Date.now(),
-            });
-          }
-          break;
-
-        case PVState.ANALYZING_POSITION:
-          // Auto-trigger analysis complete after position analysis
-          setTimeout(() => {
-            this.eventBus.emit({
-              type: PVEvent.POSITION_ANALYSIS_COMPLETE,
-              payload: context,
-              timestamp: Date.now(),
-            });
-          }, context.timePerPosition + 100);
-          break;
-
-        case PVState.BUILDING_GRAPH:
-          // Auto-trigger graph update complete
-          setTimeout(() => {
-            this.eventBus.emit({
-              type: PVEvent.GRAPH_UPDATE_COMPLETE,
-              payload: context,
-              timestamp: Date.now(),
-            });
-          }, 50);
-          break;
-
-        case PVState.STORING_RESULTS:
-          // Auto-trigger storage complete
-          setTimeout(() => {
-            this.eventBus.emit({
-              type: PVEvent.STORAGE_COMPLETE,
-              payload: context,
-              timestamp: Date.now(),
-            });
-          }, 100);
-          break;
-      }
-    } catch (error) {
-      context.lastError = error as Error;
-      this.eventBus.emit({
-        type: PVEvent.ERROR_OCCURRED,
-        payload: context,
-        timestamp: Date.now(),
-      });
-    }
+    // Remove this entire subscription block - it's no longer needed since we use hooks
+    // this.eventBus.subscribe('state_changed', async (event: any) => {
+    //   await this.handleStateTransition(
+    //     event.payload.from,
+    //     event.payload.to,
+    //     this.context
+    //   );
+    // });
   }
 
   // Public API methods
   async start(): Promise<void> {
-    await this.stateMachine.send({
-      type: PVEvent.START_EXPLORATION,
-      payload: this.context,
-      timestamp: Date.now(),
-    });
-    this.eventBus.emit({
-      type: PVEvent.START_EXPLORATION,
-      payload: this.context,
-      timestamp: Date.now(),
-    });
+    console.log('🔍 DEBUG: PVExplorationStrategy.start() called');
+    console.log('🔍 DEBUG: Current state:', this.getCurrentState());
+    console.log(
+      '🔍 DEBUG: Context:',
+      JSON.stringify(
+        {
+          rootFen: this.context.rootFen,
+          maxDepth: this.context.maxDepth,
+          maxNodes: this.context.maxNodes,
+          engineConfig: this.context.engineConfig,
+        },
+        null,
+        2
+      )
+    );
+
+    try {
+      console.log('🔍 DEBUG: Sending START_EXPLORATION event to state machine');
+      await this.stateMachine.send({
+        type: PVEvent.START_EXPLORATION,
+        payload: this.context,
+        timestamp: Date.now(),
+      });
+      console.log('🔍 DEBUG: State machine send completed');
+
+      console.log('🔍 DEBUG: Emitting START_EXPLORATION event to event bus');
+      this.eventBus.emit({
+        type: PVEvent.START_EXPLORATION,
+        payload: this.context,
+        timestamp: Date.now(),
+      });
+      console.log('🔍 DEBUG: Event bus emit completed');
+    } catch (error) {
+      console.error('🔍 DEBUG: Error in start() method:', error);
+      throw error;
+    }
   }
 
   async pause(): Promise<void> {

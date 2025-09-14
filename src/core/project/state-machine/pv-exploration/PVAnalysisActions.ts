@@ -11,7 +11,7 @@ import { convertMoveToSan } from '../../../utils/move';
 import { PositionAnalysisTask } from '../../../tasks/PositionAnalysisTask';
 import { SimpleEventBus } from '../EventBus';
 
-export class PVExplorationActions {
+export class PVAnalysisActions {
   private eventBus: SimpleEventBus;
 
   constructor(private services: IServiceContainer) {

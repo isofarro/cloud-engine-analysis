@@ -1,7 +1,7 @@
 import { Command } from 'commander';
 import { ProjectCommands } from './commands/ProjectCommands';
 import { AnalysisCommands } from './commands/AnalysisCommands';
-import { AnalyzeOptions, CLIDependencies } from './types';
+import { AnalyzeOptions, CLIDependencies, ExploreOptions } from './types';
 import { createCLIDependencies } from './dependencies';
 import { getProjectDirectory } from './utils';
 
@@ -43,8 +43,8 @@ export class ChessProjectCLI {
       )
       .option('--engine <engine>', 'Default engine for the project')
       .option('--depth <number>', 'Default analysis depth', '15')
-      .action((projectName, options) => {
-        this.projectCommands!.create(projectName, options);
+      .action(async (projectName, options) => {
+        await this.projectCommands!.create(projectName, options);
       });
 
     // Analyze command with proper options

@@ -135,6 +135,7 @@ export class PositionAnalysisTask {
           goParts.push('depth', '15'); // Default depth
         }
 
+        console.log(`🚀 Stockfish command: ${goParts.join(' ')}`);
         client.execute(goParts[0], goParts.slice(1));
       } catch (error) {
         clearTimeout(timeout);

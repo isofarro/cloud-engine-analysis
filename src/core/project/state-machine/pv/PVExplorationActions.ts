@@ -9,15 +9,19 @@ export class PVExplorationActions {
     context: PVExplorationContext
   ): Promise<void> {
     try {
-      // Extract PV moves and add to queue
-      const engineService = context.services.engine;
-      const result = await engineService.analyzePosition({
-        position: context.rootFen,
-        config: {
-          depth: 20,
-          time: context.timePerPosition,
-        },
-      });
+      // Use the stored analysis result instead of re-analyzing
+      if (!context.lastAnalysisResult) {
+        throw new Error('No analysis result available for root position');
+      }
+
+      const result = context.lastAnalysisResult;
+
+      console.log(
+        `✅ Root analysis complete. Found ${result.result.pvs?.length || 0} variations`
+      );
+      console.log(
+        `📊 Evaluation: ${result.result.score?.score || 'N/A'}, Depth: ${result.result.depth}`
+      );
 
       if (result.result.pvs && result.result.pvs.length > 0) {
         const chess = new Chess(context.rootFen);
@@ -77,10 +81,14 @@ export class PVExplorationActions {
       const result = await engineService.analyzePosition({
         position: context.currentPosition,
         config: {
-          depth: 15,
-          time: context.timePerPosition / 1000, // Convert ms to seconds
+          depth: context.engineConfig.depth || 10, // Use configured depth or lighter default
+          time: context.timePerPosition, // timePerPosition is already in seconds
         },
       });
+
+      console.log(
+        `✅ Position analysis complete. Evaluation: ${result.result.score?.score || 'N/A'}, Depth: ${result.result.depth}`
+      );
 
       // Add current position to graph
       const graphService = context.services.graph;
@@ -138,8 +146,16 @@ export class PVExplorationActions {
         }
       }
 
+      // Mark position as processed
+      context.processedPositions.add(context.currentPosition);
+      context.analyzedPositions++;
+
+      // Store the analysis result
+      context.lastAnalysisResult = result.result;
+
+      // Emit the correct event for state transition
       this.eventBus.emit({
-        type: PVEvent.GRAPH_UPDATE_COMPLETE,
+        type: PVEvent.POSITION_ANALYSIS_COMPLETE,
         payload: context,
         timestamp: Date.now(),
       });
@@ -167,7 +183,7 @@ export class PVExplorationActions {
           position: context.currentPosition || context.rootFen,
           config: {
             depth: 15,
-            time: context.timePerPosition / 1000,
+            time: context.timePerPosition,
           },
         });
 
@@ -207,7 +223,7 @@ export class PVExplorationActions {
         position: context.currentPosition || context.rootFen,
         config: {
           depth: 15,
-          time: context.timePerPosition / 1000,
+          time: context.timePerPosition,
         },
       });
 
@@ -248,6 +264,95 @@ export class PVExplorationActions {
         type: PVEvent.RETRY_REQUESTED,
         payload: context,
         timestamp: Date.now(),
+      });
+    }
+  }
+
+  async analyzeCurrentPosition(context: PVExplorationContext): Promise<void> {
+    if (!context.currentPosition) return;
+
+    const engineService = context.services.engine;
+    const result = await engineService.analyzePosition({
+      position: context.currentPosition,
+      config: {
+        depth: context.engineConfig.depth || 10,
+        time: context.timePerPosition,
+      },
+    });
+
+    console.log(
+      `✅ Position analysis complete. Evaluation: ${result.result.score?.score || 'N/A'}, Depth: ${result.result.depth}`
+    );
+
+    // Store the analysis result for the next state
+    context.lastAnalysisResult = result;
+
+    // Mark position as processed
+    context.processedPositions.add(context.currentPosition);
+    context.analyzedPositions++;
+  }
+
+  async buildGraphFromAnalysis(context: PVExplorationContext): Promise<void> {
+    if (!context.lastAnalysisResult || !context.currentPosition) return;
+
+    const result = context.lastAnalysisResult;
+
+    // Add current position to graph
+    const graphService = context.services.graph;
+    await graphService.addMove(
+      context.currentPosition,
+      {
+        move: result.result.pvs[0]?.split(' ')[0] || '',
+        toFen: context.currentPosition,
+        metadata: {
+          evaluation: result.result.score,
+          depth: result.result.depth,
+          analysisTime: context.timePerPosition,
+          timestamp: Date.now(),
+        },
+      },
+      { isPrimary: true }
+    );
+
+    context.graphNodeCount++;
+
+    // Add PV moves to exploration queue
+    if (result.result.pvs && result.result.pvs.length > 0) {
+      const chess = new Chess(context.currentPosition);
+      const moves = result.result.pvs[0].split(' ');
+
+      for (const moveStr of moves.slice(0, 3)) {
+        try {
+          const move = chess.move(moveStr);
+          if (move) {
+            const newFen = chess.fen();
+            if (!context.processedPositions.has(newFen)) {
+              context.explorationQueue.push({
+                fen: newFen,
+                depth: (context.explorationQueue[0]?.depth || 0) + 1,
+                parentNodeId: context.currentPosition,
+                move: moveStr,
+              });
+              context.totalPositions++;
+            }
+          }
+        } catch {
+          break;
+        }
+      }
+    }
+  }
+
+  async storeResults(context: PVExplorationContext): Promise<void> {
+    // Store analysis results if needed
+    if (context.services.storage && context.lastAnalysisResult) {
+      await context.services.storage.storeAnalysis({
+        result: context.lastAnalysisResult.result,
+        engineSlug: 'default-engine',
+        metadata: {
+          timestamp: Date.now(),
+          position: context.currentPosition,
+        },
       });
     }
   }
