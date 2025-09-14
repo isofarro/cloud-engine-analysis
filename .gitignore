@@ -25,3 +25,7 @@ engine-config.json
 *.njsproj
 *.sln
 *.sw?
+
+# app data
+_data/*
+
