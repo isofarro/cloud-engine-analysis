@@ -121,7 +121,7 @@ describe('PrimaryVariationExplorerTask', () => {
     config = {
       rootPosition: DEFAULT_STARTING_POSITION,
       maxPositions: 100,
-      maxDepthRatio: 1.0,
+      maxPlyDistance: 5,
       databasePath: './test-analysis.db',
       graphPath: './test-graph.json',
     };
@@ -202,7 +202,7 @@ describe('PrimaryVariationExplorerTask', () => {
       );
       createdExplorers.push(explorer);
 
-      expect(explorer.getConfig().maxDepthRatio).toBe(0.8);
+      expect(explorer.getConfig().maxPlyDistance).toBe(5);
     });
 
     it('should use provided AnalysisStoreService when passed', () => {

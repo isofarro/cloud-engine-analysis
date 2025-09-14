@@ -38,7 +38,6 @@ export class PVExplorationStrategy implements AnalysisStrategy {
   private engine: ChessEngine;
   private analysisConfig: AnalysisConfig;
   private config: PVExplorationConfig;
-  private positionAnalysisTask: PositionAnalysisTask;
   private persistenceService?: StatePersistenceService;
   private currentSessionId?: string;
 
@@ -51,10 +50,6 @@ export class PVExplorationStrategy implements AnalysisStrategy {
     this.engine = engine;
     this.analysisConfig = analysisConfig;
     this.config = config;
-    this.positionAnalysisTask = new PositionAnalysisTask(
-      engine,
-      analysisConfig
-    );
     this.persistenceService = persistenceService;
   }
 
@@ -77,7 +72,10 @@ export class PVExplorationStrategy implements AnalysisStrategy {
         positionsToAnalyze: [],
         analyzedPositions: new Set<FenString>(),
         currentDepth: 0,
-        maxDepth: this.config.maxDepthRatio * (this.analysisConfig.depth || 15), // Handle undefined depth
+        maxDepth: Math.min(
+          this.config.maxPlyDistance,
+          this.analysisConfig.depth || 15
+        ),
         positionDepths: new Map<FenString, number>(),
         stats: {
           totalAnalyzed: 0,
@@ -176,9 +174,9 @@ export class PVExplorationStrategy implements AnalysisStrategy {
   /**
    * Get execution estimate for the strategy
    */
-  getExecutionEstimate(context: AnalysisContext): ExecutionEstimate {
+  getExecutionEstimate(_context: AnalysisContext): ExecutionEstimate {
     const baseDepth = this.analysisConfig.depth || 20;
-    const maxDepth = Math.floor(baseDepth * this.config.maxDepthRatio);
+    const maxDepth = Math.min(this.config.maxPlyDistance, baseDepth);
     const estimatedPositions = Math.min(
       Math.pow(2, maxDepth), // Exponential growth estimate
       this.config.maxPositions || 1000
@@ -224,9 +222,7 @@ export class PVExplorationStrategy implements AnalysisStrategy {
     );
 
     // Calculate max exploration depth based on analysis depth and ratio
-    state.maxDepth = Math.floor(
-      analysisResult.depth * this.config.maxDepthRatio
-    );
+    state.maxDepth = Math.min(analysisResult.depth, this.config.maxPlyDistance);
 
     // Process the root analysis
     await this.processPositionAnalysis(

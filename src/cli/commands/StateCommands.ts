@@ -7,12 +7,9 @@ import * as path from 'path';
  * CLI commands for managing analysis state
  */
 export class StateCommands {
-  private deps: CLIDependencies;
   private persistenceService: StatePersistenceService;
 
-  constructor(deps: CLIDependencies) {
-    this.deps = deps;
-
+  constructor(_deps: CLIDependencies) {
     const config: StatePersistenceConfig = {
       stateDirectory: path.join(process.cwd(), '.chess-analysis', 'states'),
       autoSaveIntervalMs: 30000, // 30 seconds

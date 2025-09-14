@@ -235,7 +235,7 @@ describe('PVExplorationStrategy', () => {
     mockEngine = new MockChessEngine();
     analysisConfig = { depth: 15, multiPV: 1 };
     strategyConfig = {
-      maxDepthRatio: 0.6,
+      maxPlyDistance: 5,
       maxPositions: 100,
       exploreAlternatives: false,
       alternativeThreshold: 50,

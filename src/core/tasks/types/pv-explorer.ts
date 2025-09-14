@@ -7,8 +7,8 @@ export interface PVExplorerConfig {
   /** The root position to start exploration from */
   rootPosition: FenString;
 
-  /** Ratio of initial analysis depth to use for exploration depth (e.g., 0.5 = half) */
-  maxDepthRatio: number;
+  /** Maximum number of PV plies to explore */
+  maxPlyDistance: number;
 
   /** Maximum number of positions to explore */
   maxPositions?: number;

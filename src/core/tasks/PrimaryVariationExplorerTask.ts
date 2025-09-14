@@ -56,7 +56,7 @@ export class PrimaryVariationExplorerTask {
 
     // Create strategy config from PVExplorerConfig
     const strategyConfig: PVExplorationConfig = {
-      maxDepthRatio: this.config.maxDepthRatio,
+      maxPlyDistance: this.config.maxPlyDistance,
       maxPositions: this.config.maxPositions,
       exploreAlternatives: false, // Default value
       alternativeThreshold: 30, // Default value

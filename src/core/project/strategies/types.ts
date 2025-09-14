@@ -6,7 +6,7 @@ import { FenString } from '../../types';
  */
 export interface PVExplorationConfig {
   /** Maximum depth ratio relative to initial analysis */
-  maxDepthRatio: number;
+  maxPlyDistance: number;
 
   /** Maximum number of positions to explore */
   maxPositions?: number;
