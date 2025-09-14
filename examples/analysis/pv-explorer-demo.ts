@@ -51,14 +51,14 @@ async function primaryVariationExplorerDemo(): Promise<EngineService> {
   // Step 3: Configure exploration parameters
   const pvConfig: PVExplorerConfig = {
     rootPosition: 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1', // Starting position
-    maxDepthRatio: 0.5, // Explore to half the analysis depth (10 plies)
+    maxPlyDistance: 5,
     databasePath: './tmp/pv-exploration.db',
     graphPath: './tmp/graphs/pv-exploration.json',
   };
 
   console.log('⚙️  Configuration:');
   console.log(`   Analysis depth: ${analysisConfig.depth}`);
-  console.log(`   Max depth ratio: ${pvConfig.maxDepthRatio}`);
+  console.log(`   Max ply distance: ${pvConfig.maxPlyDistance}`);
   console.log(`   Root position: ${pvConfig.rootPosition}`);
   console.log(`   Database: ${pvConfig.databasePath}`);
   console.log(`   Graph output: ${pvConfig.graphPath}\n`);
@@ -68,7 +68,18 @@ async function primaryVariationExplorerDemo(): Promise<EngineService> {
   const explorer = new PrimaryVariationExplorerTask(
     engine,
     analysisConfig,
-    pvConfig
+    pvConfig,
+    {
+      id: 'pv-explorer-demo',
+      name: 'pv-explorer-demo',
+      projectPath: './tmp',
+      rootPosition: pvConfig.rootPosition,
+      graphPath: pvConfig.graphPath,
+      databasePath: pvConfig.databasePath,
+      config: {},
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    }
   );
 
   console.log('🚀 Starting exploration...\n');
@@ -144,7 +155,7 @@ async function sicilianDefenseExplorerDemo(): Promise<EngineService> {
 
   const pvConfig: PVExplorerConfig = {
     rootPosition: sicilianPosition,
-    maxDepthRatio: 0.4, // Slightly shallower for this demo
+    maxPlyDistance: 5, // Slightly shallower for this demo
     databasePath: './tmp/sicilian-exploration.db',
     graphPath: './tmp/graphs/sicilian-exploration.json',
   };
@@ -155,7 +166,18 @@ async function sicilianDefenseExplorerDemo(): Promise<EngineService> {
   const explorer = new PrimaryVariationExplorerTask(
     engine,
     analysisConfig,
-    pvConfig
+    pvConfig,
+    {
+      id: 'sicilian-defense-explorer-demo',
+      name: 'sicilian-defense-explorer-demo',
+      projectPath: './tmp',
+      rootPosition: pvConfig.rootPosition,
+      graphPath: pvConfig.graphPath,
+      databasePath: pvConfig.databasePath,
+      config: {},
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    }
   );
 
   await explorer.explore();

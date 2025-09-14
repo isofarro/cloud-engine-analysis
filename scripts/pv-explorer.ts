@@ -48,7 +48,7 @@ function setupCLI(): Command {
     .argument('<projectName>', 'Name for the project (used for filenames)')
     .option('-d, --depth <number>', 'Analysis depth')
     .option('-m, --multipv <number>', 'Number of principal variations', '1')
-    .option('-r, --max-depth-ratio <number>', 'Maximum depth ratio for exploration', '0.6')
+    .option('-r, --max-ply-distance <number>', 'Maximum ply distance for exploration', '0.6')
     .option('-t, --secs-per-move <number>', 'Seconds to analyze each move')
     .option('-e, --engine <engineId>', 'Engine ID to use for analysis')
     .option('--config <path>', 'Path to engine configuration file', '../engine-config.json')
@@ -126,7 +126,7 @@ async function main() {
     // Configure PV Explorer
     const pvConfig: PVExplorerConfig = {
       rootPosition: rootFen,
-      maxDepthRatio: parseFloat(options.maxDepthRatio),
+      maxPlyDistance: parseFloat(options.maxPlyDistance),
       databasePath: join(projectPath, 'analysis.db'),
       graphPath: join(projectPath, 'graph.json')
     };
@@ -135,7 +135,7 @@ async function main() {
     console.log(`  Project Directory: ${projectPath}`);
     console.log(`  Analysis Depth: ${analysisConfig.depth}`);
     console.log(`  Multi-PV: ${analysisConfig.multiPV}`);
-    console.log(`  Max Depth Ratio: ${pvConfig.maxDepthRatio}`);
+    console.log(`  Max Ply Distance: ${pvConfig.maxPlyDistance}`);
     console.log(`  Database: ${pvConfig.databasePath}`);
     console.log(`  Graph: ${pvConfig.graphPath}`);
     console.log('');
@@ -145,7 +145,18 @@ async function main() {
     const explorer = new PrimaryVariationExplorerTask(
       engine,
       analysisConfig,
-      pvConfig
+      pvConfig,
+      {
+        id: slugifiedName,
+        name: projectName,
+        projectPath,
+        rootPosition: pvConfig.rootPosition,
+        graphPath: pvConfig.graphPath,
+        databasePath: pvConfig.databasePath,
+        config: {},
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      }
     );
 
     await explorer.explore();
